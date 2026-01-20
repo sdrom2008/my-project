@@ -15,8 +15,16 @@ unpackage/
 .env.local
 .env.*.local
 
-# ÆäËû
+# ï¿½ï¿½ï¿½ï¿½
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# Visual Studio ç›¸å…³
+.vs/
+*.user
+*.suo
+*.sln.docstates
+bin/
+obj/
