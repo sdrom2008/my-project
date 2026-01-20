@@ -1,10 +1,16 @@
-using System;
-using MyProject.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using MyProject.Application.Services;
+using MyProject.Infrastructure.AIServices;
+using MyProject.Infrastructure.Data;
+using MyProject.Infrastructure.Services;
+using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddSingleton<IKernelService, KernelService>();
+
+builder.Services.AddScoped<IAiChatService, MyProject.Application.Services.AiChatService>();
 
 // Ìí¼Ó EF Core + MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
