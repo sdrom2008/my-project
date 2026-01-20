@@ -1,0 +1,22 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userprefs
+*.csproj.user
+**/TestResults/
+
+# uni-app / nodejs
+node_modules/
+unpackage/
+*.log
+.DS_Store
+.env.local
+.env.*.local
+
+# ÆäËû
+.idea/
+.vscode/
+*.swp
+*.swo

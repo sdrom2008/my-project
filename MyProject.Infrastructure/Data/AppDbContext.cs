@@ -1,0 +1,38 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+// MyProject.Infrastructure/Data/AppDbContext.cs
+using Microsoft.EntityFrameworkCore;
+using MyProject.Domain.Entities;
+
+namespace MyProject.Infrastructure.Data
+{
+    public class AppDbContext : DbContext
+    {
+        public DbSet<User> Users { get; set; }
+
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+        {
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // User 表配置（示例）
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.ToTable("Users");
+                entity.HasKey(u => u.Id);
+                entity.Property(u => u.Username).HasMaxLength(50).IsRequired();
+                entity.Property(u => u.Email).HasMaxLength(100).IsRequired();
+                entity.HasIndex(u => u.Email).IsUnique();
+                entity.Property(u => u.PasswordHash).HasMaxLength(256);
+            });
+
+            // 后续加其他实体配置...
+        }
+    }
+}
