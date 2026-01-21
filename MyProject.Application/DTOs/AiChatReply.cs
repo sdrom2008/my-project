@@ -2,7 +2,7 @@
 
 namespace MyProject.Application.DTOs
 {
-    public class ChatResponse
+    public class AiChatReply
     {
         /// <summary>
         /// 给用户的自然语言回复

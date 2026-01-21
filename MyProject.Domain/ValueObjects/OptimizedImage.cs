@@ -13,4 +13,11 @@ namespace MyProject.Domain.ValueObjects
         ImageType Type,              // Main, Detail, APlus 等
         int QualityScore             // AGI自评 0-100
     );
+    public enum ImageType
+    {
+        Product,
+        Avatar,
+        Banner,
+        Other
+    }
 }

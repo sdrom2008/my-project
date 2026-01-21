@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using MyProject.Application.Services;
+using MyProject.Application.Interfaces;
 using MyProject.Infrastructure.AIServices;
 using MyProject.Infrastructure.Data;
 using MyProject.Infrastructure.Services;
@@ -9,8 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddSingleton<IKernelService, KernelService>();
+builder.Services.AddScoped<IAiChatService, AiChatService>();
 
-builder.Services.AddScoped<IAiChatService, MyProject.Application.Services.AiChatService>();
+builder.Services.AddScoped<IAiChatService, AiChatService>();
+builder.Services.AddHttpClient();  // HttpClient ¹¤³§
 
 // Ìí¼Ó EF Core + MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -36,8 +38,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+//app.UseAuthorization();
 
-app.MapControllers();
+//app.MapControllers();
 
 app.Run();
