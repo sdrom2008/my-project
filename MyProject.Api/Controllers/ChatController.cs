@@ -1,27 +1,23 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MyProject.Application.Services;
+using MyProject.Application.Interfaces;
+using MyProject.Application.DTOs;
 using System.Threading.Tasks;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/chat")]
 public class ChatController : ControllerBase
 {
-    private readonly IAiChatService _aiService;
+    private readonly IAiChatService _aiChatService;
 
-    public ChatController(IAiChatService aiService)
+    public ChatController(IAiChatService aiChatService)
     {
-        _aiService = aiService;
+        _aiChatService = aiChatService;
     }
 
     [HttpPost]
-    public async Task<IActionResult> SendMessage([FromBody] ChatRequest request)
+    public async Task<IActionResult> Post([FromBody] ChatRequest request)
     {
-        var reply = await _aiService.ProcessUserMessageAsync(request.Message, _aiService.Get_tools());
-        return Ok(new { reply });
+        var response = await _aiChatService.ChatAsync(request.ConversationId, request.Message);
+        return Ok(response);
     }
-}
-
-public class ChatRequest
-{
-    public string Message { get; set; } = string.Empty;
 }
