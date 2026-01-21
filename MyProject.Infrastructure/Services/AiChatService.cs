@@ -1,14 +1,12 @@
-﻿using AlibabaCloud.SDK.Dashscope20230320;
-using AlibabaCloud.SDK.Dashscope20230320.Models;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using MyProject.Application.Interfaces;
 using MyProject.Application.Services;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
+using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace MyProject.Infrastructure.Services;
@@ -17,136 +15,128 @@ public class AiChatService : IAiChatService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<AiChatService> _logger;
+    private readonly HttpClient _httpClient;
 
-    // 内存存储会话历史（测试用，生产换 Redis 或数据库）
-    private static readonly Dictionary<string, List<object>> _conversationHistory = new();
+    // 会话历史存储（内存版，生产可换 Redis）
+    private static readonly Dictionary<string, List<object>> _history = new();
 
-    public AiChatService(IConfiguration configuration, ILogger<AiChatService> logger)
+    public AiChatService(
+        IConfiguration configuration,
+        ILogger<AiChatService> logger,
+        IHttpClientFactory httpClientFactory)
     {
         _configuration = configuration;
         _logger = logger;
+        _httpClient = httpClientFactory.CreateClient();
     }
 
-    public async Task<ChatResponse> ChatAsync(string conversationId, string message)
+    public async Task<ChatResponse> ChatAsync(string conversationId, string userMessage)
     {
-        if (string.IsNullOrWhiteSpace(conversationId) || string.IsNullOrWhiteSpace(message))
-        {
-            throw new ArgumentException("ConversationId 和 Message 不能为空");
-        }
+        if (string.IsNullOrWhiteSpace(conversationId))
+            throw new ArgumentException("ConversationId 不能为空");
+
+        if (string.IsNullOrWhiteSpace(userMessage))
+            throw new ArgumentException("Message 不能为空");
 
         var apiKey = _configuration["DashScope:ApiKey"];
         if (string.IsNullOrEmpty(apiKey))
-        {
-            throw new InvalidOperationException("未配置 DashScope API Key");
-        }
+            throw new InvalidOperationException("未配置 DashScope ApiKey");
 
         // 获取或初始化会话历史
-        if (!_conversationHistory.TryGetValue(conversationId, out var history))
+        if (!_history.TryGetValue(conversationId, out var messages))
         {
-            history = new List<object>();
-            _conversationHistory[conversationId] = history;
+            messages = new List<object>();
+            _history[conversationId] = messages;
         }
 
-        // 添加用户消息到历史
-        history.Add(new { role = "user", content = message });
+        // 添加用户消息
+        messages.Add(new { role = "user", content = userMessage });
 
         try
         {
-            var client = new Client(new AlibabaCloud.OpenApiClient.Config
+            var requestBody = new
             {
-                AccessKeyId = apiKey,
-                AccessKeySecret = apiKey,  // DashScope 用 ApiKey 作为 Secret
-                Endpoint = "dashscope.aliyuncs.com",
-                RegionId = "cn-hangzhou"
-            });
-
-            var request = new RunGenerationRequest
-            {
-                Model = "qwen-max",  // 或 qwen-turbo 等
-                Input = new RunGenerationRequestInput
+                model = "qwen-max",
+                input = new
                 {
-                    Messages = history,
-                    // 强提示：要求输出严格 JSON 格式
-                    Prompt = @"你是一个专业的智能客服助手。请严格按照以下 JSON 格式回复，不要添加任何额外文字、解释或 markdown：
+                    messages
+                },
+                parameters = new
+                {
+                    // 强提示：必须输出纯 JSON，不要多余文字
+                    prompt = @"请严格按照以下 JSON 格式回复，不要添加任何额外文字、解释、markdown 或换行：
 {
   ""reply"": ""给用户的自然语言友好回复"",
-  ""type"": ""text|order|appointment|product"",
-  ""data"": { ""key"": ""value"" }  // 根据 type 填充相关数据，可为空对象
+  ""type"": ""text|order|appointment|product|other"",
+  ""data"": {} // 根据 type 可选填充数据，如订单号、状态等
 }"
                 }
             };
 
-            var response = await client.RunGenerationAsync(request);
+            var jsonContent = JsonConvert.SerializeObject(requestBody);
+            var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation");
+            httpRequest.Headers.Add("Authorization", $"Bearer {apiKey}");
+            httpRequest.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-            if (response.StatusCode != 200 || response.Body?.Output?.Text == null)
+            var httpResponse = await _httpClient.SendAsync(httpRequest);
+            var responseText = await httpResponse.Content.ReadAsStringAsync();
+
+            if (!httpResponse.IsSuccessStatusCode)
             {
-                _logger.LogError("通义千问调用失败: {Code} {Message}", response.StatusCode, response.Body?.Message);
-                return new ChatResponse { Reply = "抱歉，AI 服务暂时不可用，请稍后再试", Type = "text" };
+                _logger.LogError("通义千问调用失败 {StatusCode}: {Response}", httpResponse.StatusCode, responseText);
+                return new ChatResponse { reply = "抱歉，AI 服务暂时不可用，请稍后再试" };
             }
 
-            var aiRawText = response.Body.Output.Text;
+            var aiJson = JObject.Parse(responseText);
+            var aiText = aiJson["output"]?["text"]?.ToString() ?? "";
 
-            // 尝试解析 JSON
-            JObject jsonReply;
+            // 解析 AI 返回的 JSON
+            JObject parsed;
             try
             {
-                jsonReply = JObject.Parse(aiRawText);
+                parsed = JObject.Parse(aiText);
             }
-            catch (JsonException)
+            catch
             {
                 // 如果不是纯 JSON，尝试提取 JSON 块
-                var jsonStart = aiRawText.IndexOf('{');
-                var jsonEnd = aiRawText.LastIndexOf('}');
-                if (jsonStart >= 0 && jsonEnd > jsonStart)
+                var start = aiText.IndexOf('{');
+                var end = aiText.LastIndexOf('}');
+                if (start >= 0 && end > start)
                 {
-                    var jsonStr = aiRawText.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                    jsonReply = JObject.Parse(jsonStr);
+                    var jsonPart = aiText.Substring(start, end - start + 1);
+                    parsed = JObject.Parse(jsonPart);
                 }
                 else
                 {
-                    // 回退到纯文本
-                    jsonReply = new JObject
-                    {
-                        ["reply"] = aiRawText,
-                        ["type"] = "text"
-                    };
+                    parsed = new JObject { ["reply"] = aiText, ["type"] = "text" };
                 }
             }
 
-            var replyText = jsonReply["reply"]?.ToString() ?? aiRawText;
-            var type = jsonReply["type"]?.ToString() ?? "text";
-            var data = jsonReply["data"] as JObject;
+            var reply = parsed["reply"]?.ToString() ?? aiText;
+            var type = parsed["type"]?.ToString() ?? "text";
+            var data = parsed["data"] as JObject;
 
-            // 添加 AI 回复到历史（保持上下文连续）
-            history.Add(new { role = "assistant", content = replyText });
+            // 把 AI 回复加到历史
+            messages.Add(new { role = "assistant", content = reply });
 
-            // 返回结构化结果
             return new ChatResponse
             {
-                Reply = replyText,
-                Type = type,
-                Data = data?.ToObject<Dictionary<string, object>>()
+                reply = reply,
+                type = type,
+                data = data?.ToObject<Dictionary<string, object>>()
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "AI 聊天处理异常，ConversationId: {Id}", conversationId);
-            return new ChatResponse { Reply = "抱歉，服务器内部错误，请稍后再试", Type = "text" };
+            _logger.LogError(ex, "AI 聊天处理异常");
+            return new ChatResponse { reply = "服务器内部错误，请稍后再试" };
         }
     }
 }
-
 // 输出 DTO
 public class ChatResponse
 {
-    public string Reply { get; set; } = string.Empty;
-    public string Type { get; set; } = "text";
-    public Dictionary<string, object>? Data { get; set; }
-}
-
-// 输入 DTO（Controller 使用）
-public class ChatRequest
-{
-    public string ConversationId { get; set; } = string.Empty;
-    public string Message { get; set; } = string.Empty;
+    public string reply { get; set; } = string.Empty;
+    public string type { get; set; } = "text";
+    public Dictionary<string, object>? data { get; set; }
 }
