@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using MyProject.Application.Interfaces;
 using MyProject.Infrastructure.AIServices;
@@ -7,12 +8,17 @@ using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddControllers();  // ← 必须加这一行！注册所有 Controller
+
 // Add services to the container.
-builder.Services.AddSingleton<IKernelService, KernelService>();
+//builder.Services.AddSingleton<IKernelService, KernelService>();
 builder.Services.AddScoped<IAiChatService, AiChatService>();
 
-builder.Services.AddScoped<IAiChatService, AiChatService>();
 builder.Services.AddHttpClient();  // HttpClient 工厂
+
+// JWT 认证（如果你后面要加）
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(/* 配置 */);
 
 // 添加 EF Core + MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -40,6 +46,6 @@ app.UseHttpsRedirection();
 
 //app.UseAuthorization();
 
-//app.MapControllers();
+app.MapControllers();
 
 app.Run();
