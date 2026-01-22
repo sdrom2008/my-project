@@ -22,20 +22,22 @@
 
         try {
             const loginRes = await uni.login({ provider: 'weixin' })
-            if (!loginRes.code) throw new Error('code ')
+            if (!loginRes.code) throw new Error('获取微信 code 失败 ')
 
-            console.log('code:', loginRes.code) //
+            console.log('微信 code:', loginRes.code) //
 
             const res = await uni.request({
-                url: 'http://localhost:7092/api/auth/wechat',  // 
+                url: 'https://localhost:7092/api/auth/wechat',  // 
                 method: 'POST',
                 header: { 'Content-Type': 'application/json' },
                 data: { code: loginRes.code },
                 timeout: 10000
             }) as any
 
+            console.log('后端响应:', res)  // 加这行，便于调试
+
             if (res.statusCode !== 200) {
-                throw new Error(res.data?.message || 退出登录 (${res.statusCode})`)
+                throw new Error(res.data?.message || 退出登录 `(${res.statusCode})`)
             }
 
             const { token, sellerId } = res.data
@@ -46,8 +48,9 @@
             uni.showToast({ title: '退出登录', icon: 'success' })
             uni.reLaunch({ url: '/pages/seller/dashboard/index' })
         } catch (err: any) {
-            errorMsg.value = err.message || '？？？'
-            console.error('？', err)
+            console.error('登录失败详情:', err)
+            errorMsg.value = err.errMsg || err.message || JSON.stringify(err) || '登录失败，请检查网络'
+            uni.showToast({ title: errorMsg.value, icon: 'error' })
         } finally {
             loading.value = false
         }

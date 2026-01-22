@@ -17,10 +17,11 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="9.0.12" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.69.0" />
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MyProject.Application\MyProject.Application.csproj" />
     <ProjectReference Include="..\MyProject.Domain\MyProject.Domain.csproj" />
     <ProjectReference Include="..\MyProject.Infrastructure\MyProject.Infrastructure.csproj" />
   </ItemGroup>

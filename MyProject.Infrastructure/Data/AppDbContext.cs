@@ -1,12 +1,6 @@
 ﻿// MyProject.Infrastructure/Data/AppDbContext.cs
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualBasic;
 using MyProject.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MyProject.Infrastructure.Data
 {
@@ -30,11 +24,16 @@ namespace MyProject.Infrastructure.Data
             {
                 entity.ToTable("Users");
                 entity.HasKey(u => u.Id);
-                entity.Property(u => u.Username).HasMaxLength(50).IsRequired();
-                entity.Property(u => u.Email).HasMaxLength(100).IsRequired();
-                entity.HasIndex(u => u.Email).IsUnique();
+                entity.HasIndex(u => u.OpenId).IsUnique();   // OpenId 唯一
+                entity.Property(u => u.OpenId).HasMaxLength(128).IsRequired();
+                entity.Property(u => u.Username).HasMaxLength(50);
+                entity.Property(u => u.Email).HasMaxLength(100);
                 entity.Property(u => u.PasswordHash).HasMaxLength(256);
+                entity.Property(u => u.Nickname).HasMaxLength(100);
+                entity.Property(u => u.AvatarUrl).HasMaxLength(500);
+                entity.Property(u => u.SubscriptionLe).HasMaxLength(20);
             });
+
 
             // 后续加其他实体配置...
             modelBuilder.Entity<Seller>(entity =>
