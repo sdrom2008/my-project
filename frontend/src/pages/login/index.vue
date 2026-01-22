@@ -1,10 +1,10 @@
 <template>
     <view class="login-container">
         <view class="header">
-            <text class="title">NexusAI Âô¼ÒºóÌ¨</text>
+            <text class="title">NexusAI å–å®¶åå°</text>
         </view>
         <button class="login-btn" @click="handleWxLogin" :loading="loading">
-            Î¢ĞÅÒ»¼üµÇÂ¼
+            å¾®ä¿¡ç™»å½•
         </button>
         <view v-if="errorMsg" class="error">{{ errorMsg }}</view>
     </view>
@@ -22,12 +22,12 @@
 
         try {
             const loginRes = await uni.login({ provider: 'weixin' })
-            if (!loginRes.code) throw new Error('»ñÈ¡ code Ê§°Ü')
+            if (!loginRes.code) throw new Error('code ')
 
-            console.log('code:', loginRes.code) // µ÷ÊÔ
+            console.log('code:', loginRes.code) //
 
             const res = await uni.request({
-                url: 'http://localhost:7092/api/auth/wechat',  // ¸Ä³ÉÄãµÄºó¶Ë¶Ë¿Ú
+                url: 'http://localhost:7092/api/auth/wechat',  // 
                 method: 'POST',
                 header: { 'Content-Type': 'application/json' },
                 data: { code: loginRes.code },
@@ -35,7 +35,7 @@
             }) as any
 
             if (res.statusCode !== 200) {
-                throw new Error(res.data?.message || `µÇÂ¼Ê§°Ü (${res.statusCode})`)
+                throw new Error(res.data?.message || é€€å‡ºç™»å½• (${res.statusCode})`)
             }
 
             const { token, sellerId } = res.data
@@ -43,11 +43,11 @@
             uni.setStorageSync('token', token)
             uni.setStorageSync('sellerId', sellerId)
 
-            uni.showToast({ title: 'µÇÂ¼³É¹¦', icon: 'success' })
+            uni.showToast({ title: 'é€€å‡ºç™»å½•', icon: 'success' })
             uni.reLaunch({ url: '/pages/seller/dashboard/index' })
         } catch (err: any) {
-            errorMsg.value = err.message || 'µÇÂ¼³ö´í£¬Çë¼ì²éÍøÂç'
-            console.error('µÇÂ¼Ê§°Ü:', err)
+            errorMsg.value = err.message || 'ï¼Ÿï¼Ÿï¼Ÿ'
+            console.error('ï¼Ÿ', err)
         } finally {
             loading.value = false
         }

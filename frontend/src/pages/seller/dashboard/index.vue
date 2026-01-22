@@ -1,7 +1,7 @@
 <template>
     <view class="dashboard">
-        <text class="welcome">╩╤с╜ю╢╣╫ NexusAI рг╠Мелё║</text>
-        <button @click="logout">мкЁЖ╣гб╪</button>
+        <text class="welcome">Ф╛╒Х©▌Ф²╔Е┬╟ NexusAI Д╩╙Х║╗Г⌡≤О╪│</text>
+        <button @click="logout">И──Е┤╨Г≥╩Е╫∙</button>
     </view>
 </template>
 
