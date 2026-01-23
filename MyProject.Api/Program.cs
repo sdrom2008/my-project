@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MyProject.Application.Interfaces;
+using MyProject.Infrastructure.AI;
 using MyProject.Infrastructure.Data;
+using MyProject.Infrastructure.Repositories;
 using MyProject.Infrastructure.Services;
 using System;
 using System.Text;
@@ -12,7 +14,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();  // ← 必须加这一行！注册所有 Controller
 
 // Add services to the container.
+builder.Services.AddScoped<IAuthService, AuthService>();
+
 builder.Services.AddScoped<IAiChatService, AiChatService>();
+
+//ai 单例配置
+builder.Services.AddSingleton<SemanticKernelConfig>();
+
+// 泛型仓储（推荐）
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+// 如果用了专用仓储
+builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
 
 builder.Services.AddHttpClient();  // HttpClient 工厂
 

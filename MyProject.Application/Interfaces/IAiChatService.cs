@@ -10,11 +10,21 @@ namespace MyProject.Application.Interfaces
     public interface IAiChatService
     {
         /// <summary>
-        /// 发送消息并获取 AI 回复
+        /// 聊天交互
         /// </summary>
-        /// <param name="conversationId">会话 ID，用于保持上下文</param>
-        /// <param name="message">用户输入的消息</param>
-        /// <returns>AI 回复的结构化结果</returns>
-        Task<AiChatReply> ChatAsync(string conversationId, string message);
+        /// <param name="userId"></param>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        //Task<ChatResponse> ChatAsync(Guid userId, ChatRequest request);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="command"></param>
+        /// <returns></returns>
+        Task<ChatMessageReplyDto> ProcessUserMessageAsync(Guid userId, SendChatMessageCommand command);
+
+        
     }
 }

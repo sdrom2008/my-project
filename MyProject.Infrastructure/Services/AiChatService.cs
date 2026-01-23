@@ -1,128 +1,150 @@
-﻿using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using MyProject.Application.DTOs; // 确保已引用 ChatResponse 类型
+﻿using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
+using MyProject.Application.DTOs;
 using MyProject.Application.Interfaces;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Text;
-using System.Threading.Tasks;
+using MyProject.Domain.Entities;
+using MyProject.Infrastructure.AI;
+using System.Text.Json;
 
 namespace MyProject.Infrastructure.Services;
 
 public class AiChatService : IAiChatService
 {
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<AiChatService> _logger;
-    private readonly HttpClient _httpClient;
-
-    // 内存存储会话历史
-    private static readonly Dictionary<string, List<object>> _history = new();
+    private readonly SemanticKernelConfig _skConfig;
+    private readonly IRepository<Conversation> _conversationRepository;
 
     public AiChatService(
-        IConfiguration configuration,
-        ILogger<AiChatService> logger,
-        IHttpClientFactory httpClientFactory)
+        SemanticKernelConfig skConfig,
+        IRepository<Conversation> conversationRepository)
     {
-        _configuration = configuration;
-        _logger = logger;
-        _httpClient = httpClientFactory.CreateClient();
+        _skConfig = skConfig;
+        _conversationRepository = conversationRepository;
     }
 
-    public async Task<AiChatReply> ChatAsync(string conversationId, string message)
+    public async Task<ChatMessageReplyDto> ProcessUserMessageAsync(Guid sellerId, SendChatMessageCommand command)
     {
-        if (string.IsNullOrWhiteSpace(conversationId) || string.IsNullOrWhiteSpace(message))
-            throw new ArgumentException("ConversationId 或 Message 不能为空");
+        // 1. 获取或创建会话
+        var conversation = await GetOrCreateConversation(sellerId, command.ConversationId);
 
-        var apiKey = _configuration["DashScope:ApiKey"];
-        if (string.IsNullOrEmpty(apiKey))
-            throw new InvalidOperationException("未配置 DashScope ApiKey");
+        // 2. 添加用户消息
+        var userMsg = ChatMessage.FromUser(command.Message);
+        conversation.AddMessage(userMsg);
 
-        // 获取或初始化历史
-        if (!_history.TryGetValue(conversationId, out var messages))
+        // 3. Semantic Kernel 处理
+        var kernel = _skConfig.Kernel;
+        var chatService = kernel.GetRequiredService<IChatCompletionService>();
+
+        var chatHistory = new ChatHistory();
+
+        // 系统 Prompt（固定指令，告诉模型如何处理意图）
+        chatHistory.AddSystemMessage(@"
+你是中国中小电商卖家的智能店小二，精通淘宝/拼多多/抖音运营。
+用户输入一句话意图，你要：
+- 如果包含'优化'、'详情'、'营销'、'图片'等词，判断为商品优化任务
+- 自动完成优化，返回严格 JSON 格式（无多余文字）
+- JSON 结构必须是：
+{
+  ""reply_text"": ""已完成优化，以下是结果"",
+  ""type"": ""optimize_result"",
+  ""data"": {
+    ""optimized_title"": ""新标题"",
+    ""optimized_description"": ""Markdown 格式描述"",
+    ""marketing_plan"": {
+      ""short_video_script"": ""短视频脚本"",
+      ""planting_text"": ""种草文案"",
+      ""live_script"": ""直播话术"",
+      ""key_selling_points"": [""卖点1"", ""卖点2""]
+    },
+    ""image_prompts"": [""通义万相 prompt1"", ""prompt2""]
+  }
+}
+- 如果不是优化意图，返回普通回复 JSON：{ ""reply_text"": ""..."", ""type"": ""text"" }
+");
+
+        // 加载最近历史（控制 token）
+        foreach (var msg in conversation.Messages.OrderByDescending(m => m.Timestamp).Take(10).Reverse())
         {
-            messages = new List<object>();
-            _history[conversationId] = messages;
+            chatHistory.AddMessage(msg.IsFromUser ? AuthorRole.User : AuthorRole.Assistant, msg.Content);
         }
 
-        messages.Add(new { role = "user", content = message });
+        // 当前输入
+        chatHistory.AddUserMessage(command.Message);
+
+        // 执行生成（强制 JSON 输出）
+        var settings = new OpenAIPromptExecutionSettings
+        {
+            Temperature = 0.7,
+            MaxTokens = 3000,
+            ResponseFormat = "json_object"  // 关键：强制 JSON
+        };
+
+        var result = await chatService.GetChatMessageContentAsync(chatHistory, settings);
+        var replyJson = result.Content ?? "{\"reply_text\":\"抱歉，无法处理\",\"type\":\"text\"}";
+
+        // 4. 解析 JSON
+        string replyText = "处理中...";
+        string messageType = "text";
+        object? structuredData = null;
 
         try
         {
-            var requestBody = new
+            var parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(replyJson);
+            if (parsed != null)
             {
-                model = "qwen-max",
-                input = new { messages },
-                parameters = new
+                replyText = parsed["reply_text"].GetString() ?? replyText;
+                messageType = parsed["type"].GetString() ?? messageType;
+
+                if (messageType == "optimize_result" && parsed.TryGetValue("data", out var dataElem))
                 {
-                    // 强提示（之前跑通的版本）
-                    prompt = @"你是一个专业的智能客服助手。请严格按照以下 JSON 格式回复，不要添加任何额外文字、解释、markdown 或换行：
-{
-  ""reply"": ""给用户的自然语言友好回复"",
-  ""type"": ""text|order|appointment|product|other"",
-  ""data"": {} // 根据 type 可选填充数据，如订单号、状态等
-}"
-                }
-            };
-
-            var jsonContent = JsonConvert.SerializeObject(requestBody);
-            var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation");
-            httpRequest.Headers.Add("Authorization", $"Bearer {apiKey}");
-            httpRequest.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-            var httpResponse = await _httpClient.SendAsync(httpRequest);
-            var responseText = await httpResponse.Content.ReadAsStringAsync();
-
-            if (!httpResponse.IsSuccessStatusCode)
-            {
-                _logger.LogError("通义千问调用失败 {StatusCode}: {Response}", httpResponse.StatusCode, responseText);
-                return new AiChatReply { Reply = "抱歉，AI 服务暂时不可用" };
-            }
-
-            var aiJson = JObject.Parse(responseText);
-            var aiText = aiJson["output"]?["text"]?.ToString() ?? "";
-
-            // 解析 JSON
-            JObject parsed;
-            try
-            {
-                parsed = JObject.Parse(aiText);
-            }
-            catch
-            {
-                var start = aiText.IndexOf('{');
-                var end = aiText.LastIndexOf('}');
-                if (start >= 0 && end > start)
-                {
-                    var jsonPart = aiText.Substring(start, end - start + 1);
-                    parsed = JObject.Parse(jsonPart);
-                }
-                else
-                {
-                    parsed = new JObject { ["reply"] = aiText, ["type"] = "text" };
+                    structuredData = JsonSerializer.Deserialize<OptimizeProductData>(dataElem.GetRawText());
                 }
             }
-
-            var reply = parsed["reply"]?.ToString() ?? aiText;
-            var type = parsed["type"]?.ToString() ?? "text";
-            var data = parsed["data"] as JObject;
-
-            messages.Add(new { role = "assistant", content = reply });
-
-            return new AiChatReply
-            {
-                Reply = reply,
-                Type = type,
-                Data = data?.ToObject<Dictionary<string, object>>()
-            };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "AI 聊天异常");
-            return new AiChatReply { Reply = "服务器内部错误，请稍后再试" };
+            replyText = $"AI 输出解析失败：{ex.Message}";
+            Console.WriteLine($"JSON 解析错误: {ex.Message}\n原始: {replyJson}");
         }
+
+        // 5. 添加 AI 回复
+        var aiMsg = ChatMessage.FromAI(replyText, messageType, structuredData);
+        conversation.AddMessage(aiMsg);
+
+        await _conversationRepository.UpdateAsync(conversation);
+        //await _conversationRepository.SaveChangesAsync();
+
+        // 6. 返回 DTO
+        return new ChatMessageReplyDto
+        {
+            ConversationId = conversation.Id,
+            Messages = conversation.Messages.Select(m => new ChatMessageItemDto
+            {
+                IsFromUser = m.IsFromUser,
+                Content = m.Content,
+                MessageType = m.Type,
+                Data = m.DataJson != null ? JsonSerializer.Deserialize<object>(m.DataJson) : null
+            }).ToList()
+        };
+    }
+
+    private async Task<Conversation> GetOrCreateConversation(Guid sellerId, Guid? conversationId)
+    {
+        Conversation? conversation = null;
+
+        if (conversationId.HasValue)
+        {
+            conversation = await _conversationRepository.FirstOrDefaultAsync(
+                c => c.Id == conversationId.Value && c.SellerId == sellerId);
+        }
+
+        if (conversation == null)
+        {
+            conversation = Conversation.Create(sellerId);
+            await _conversationRepository.AddAsync(conversation);
+            //await _conversationRepository.SaveChangesAsync();  // 立即保存，确保 ID 可用
+        }
+
+        return conversation;
     }
 }

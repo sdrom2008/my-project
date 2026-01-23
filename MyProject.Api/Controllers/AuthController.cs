@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MyProject.Application.Interfaces;
 using MyProject.Domain.Entities;
 using MyProject.Infrastructure.Data;
+using MyProject.Infrastructure.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -14,53 +16,52 @@ public class AuthController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
     private readonly HttpClient _http;
+    private readonly IAuthService _authService;
 
-    public AuthController(AppDbContext db, IConfiguration config, IHttpClientFactory factory)
+    public AuthController(AppDbContext db, IAuthService authService, IConfiguration config, IHttpClientFactory factory)
     {
         _db = db;
+        _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _config = config;
         _http = factory.CreateClient();
     }
 
     [HttpPost("wechat")]
-    public async Task<IActionResult> WeChatLogin([FromBody] WeChatCode code)
+    public async Task<IActionResult> WeChatLogin([FromBody] WeChatCode request)
     {
-        if (string.IsNullOrEmpty(code.Code)) return BadRequest("Code required");
+        if (string.IsNullOrEmpty(request.Code)) return BadRequest("Code required");
 
         var appId = _config["WeChat:AppId"];
         var secret = _config["WeChat:AppSecret"];
-        var url = $"https://api.weixin.qq.com/sns/jscode2session?appid={appId}&secret={secret}&js_code={code.Code}&grant_type=authorization_code";
+        var url = $"https://api.weixin.qq.com/sns/jscode2session?appid={appId}&secret={secret}&js_code={request.Code}&grant_type=authorization_code";
 
         var resp = await _http.GetFromJsonAsync<WeChatResp>(url);
         if (resp?.OpenId == null) return BadRequest(resp?.Errmsg ?? "微信登录失败");
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.OpenId == resp.OpenId);
-        if (user == null)
+        var openId = resp.OpenId;
+
+        var seller = await _db.Sellers.FirstOrDefaultAsync(s => s.OpenId == openId);
+        if (seller == null)
         {
-            user = MyProject.Domain.Entities.User.Create(resp.OpenId);
-            _db.Users.Add(user);
+            seller = Seller.Create(openId);
+            _db.Sellers.Add(seller);
             await _db.SaveChangesAsync();
         }
 
-        var token = GenerateJwt(user.Id);
-        return Ok(new { token, userId = user.Id.ToString(), nickname = user.Nickname });
-    }
+        seller.RecordLogin();  // 更新登录时间
+        await _db.SaveChangesAsync();
 
-    private string GenerateJwt(Guid userId)
-    {
-        var claims = new[] { new Claim("userId", userId.ToString()) };
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = _authService.GenerateJwt(seller.Id);
 
-        var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.Now.AddMinutes(double.Parse(_config["Jwt:ExpiryMinutes"]!)),
-            signingCredentials: creds);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
+        return Ok(new
+        {
+            token,
+            sellerId = seller.Id.ToString(),
+            nickname = seller.Nickname,
+            avatarUrl = seller.AvatarUrl,
+            subscriptionLevel = seller.SubscriptionLevel
+        });
+    } 
 }
 
 public class WeChatCode { public string Code { get; set; } = null!; }
