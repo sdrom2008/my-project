@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace MyProject.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreateClean : Migration
+    public partial class InitialCreateWithLowerCaseTables : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,24 +15,24 @@ namespace MyProject.Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Sellers",
+                name: "sellers",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
                     OpenId = table.Column<string>(type: "varchar(128)", maxLength: 128, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Username = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                    Username = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Email = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    Email = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    PasswordHash = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: true)
+                    PasswordHash = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Nickname = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    Nickname = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    AvatarUrl = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                    AvatarUrl = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    SubscriptionLevel = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Free")
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    SubscriptionLevel = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     LastLoginAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
@@ -40,31 +40,29 @@ namespace MyProject.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Sellers", x => x.Id);
+                    table.PrimaryKey("PK_sellers", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Conversations",
+                name: "conversations",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
                     Title = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     LastActiveAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    SellerId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    ConversationId = table.Column<string>(type: "varchar(128)", unicode: false, maxLength: 128, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                    SellerId = table.Column<byte[]>(type: "binary(16)", nullable: false),
+                    ConversationId = table.Column<byte[]>(type: "binary(16)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Conversations", x => x.Id);
+                    table.PrimaryKey("PK_conversations", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Conversations_Sellers_SellerId",
+                        name: "FK_conversations_sellers_SellerId",
                         column: x => x.SellerId,
-                        principalTable: "Sellers",
+                        principalTable: "sellers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 })
@@ -74,32 +72,33 @@ namespace MyProject.Infrastructure.Migrations
                 name: "SellerConfigs",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    SellerId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
+                    SellerId = table.Column<byte[]>(type: "binary(16)", nullable: false),
                     ApiKey = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     DbConnectionString = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    CustomRules = table.Column<string>(type: "json", nullable: true)
+                    CustomRules = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SellerConfigs", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_SellerConfigs_Sellers_SellerId",
+                        name: "FK_SellerConfigs_sellers_SellerId",
                         column: x => x.SellerId,
-                        principalTable: "Sellers",
+                        principalTable: "sellers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "ChatMessage",
+                name: "chatmessage",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
+                    ConversationId = table.Column<byte[]>(type: "binary(16)", nullable: false),
                     IsFromUser = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Content = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -107,35 +106,28 @@ namespace MyProject.Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     DataJson = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    ConversationId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci")
+                    Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ChatMessage", x => x.Id);
+                    table.PrimaryKey("PK_chatmessage", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_ChatMessage_Conversations_ConversationId",
+                        name: "FK_chatmessage_conversations_ConversationId",
                         column: x => x.ConversationId,
-                        principalTable: "Conversations",
+                        principalTable: "conversations",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChatMessage_ConversationId",
-                table: "ChatMessage",
+                name: "IX_chatmessage_ConversationId",
+                table: "chatmessage",
                 column: "ConversationId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Conversations_ConversationId",
-                table: "Conversations",
-                column: "ConversationId",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Conversations_SellerId",
-                table: "Conversations",
+                name: "IX_conversations_SellerId",
+                table: "conversations",
                 column: "SellerId");
 
             migrationBuilder.CreateIndex(
@@ -144,8 +136,8 @@ namespace MyProject.Infrastructure.Migrations
                 column: "SellerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Sellers_OpenId",
-                table: "Sellers",
+                name: "IX_sellers_OpenId",
+                table: "sellers",
                 column: "OpenId",
                 unique: true);
         }
@@ -154,16 +146,16 @@ namespace MyProject.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "ChatMessage");
+                name: "chatmessage");
 
             migrationBuilder.DropTable(
                 name: "SellerConfigs");
 
             migrationBuilder.DropTable(
-                name: "Conversations");
+                name: "conversations");
 
             migrationBuilder.DropTable(
-                name: "Sellers");
+                name: "sellers");
         }
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MyProject.Application.DTOs;
 using MyProject.Application.Interfaces;
 using MyProject.Domain.Entities;
+using System;
 
 [ApiController]
 [Route("api/chat")]
@@ -67,6 +68,7 @@ public class ChatController : ControllerBase
         // if (conversation == null || conversation.SellerId != sellerId) return NotFound();
 
         // return Ok(... 转 DTO);
+        await Task.CompletedTask; // 修复 CS1998，保留异步签名
 
         return Ok(new { message = "历史消息加载功能开发中" });
     }

@@ -16,5 +16,6 @@ namespace MyProject.Application.Interfaces
         Task UpdateAsync(T entity);
         Task DeleteAsync(T entity);
         Task<int> SaveChangesAsync();
+        Task ReloadAsync(T entity);
     }
 }

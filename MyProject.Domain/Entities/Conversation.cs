@@ -10,7 +10,6 @@ namespace MyProject.Domain.Entities
 {
     public class Conversation : AggregateRoot<Guid>
     {
-        public Guid UserId { get; private set; }
         public string Title { get; private set; } = "新对话";
         public List<ChatMessage> Messages { get; private set; } = new();
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
@@ -23,27 +22,24 @@ namespace MyProject.Domain.Entities
         public Seller? Seller { get; private set; }
 
         // 会话唯一标识（如果你需要一个字符串形式的 ID，比如前端用）
-        public string ConversationId { get; private set; } = string.Empty;  // 新增这个
+        public Guid ConversationId { get; private set; }  // 新增这个
 
         // 或者如果你想在数据库里用 JSON 列存储 Messages（不推荐长期用，建议用单独表）
         // public string MessagesJson { get; private set; } = "[]";
 
         private Conversation() { }
 
-        public static Conversation Create(Guid userId)
-        {
-            return new Conversation { Id = Guid.NewGuid(), UserId = userId };
-        }
-
         public static Conversation Create(Guid sellerId, string? title = null)
         {
-            return new Conversation
+            var conv = new Conversation
             {
                 Id = Guid.NewGuid(),
                 SellerId = sellerId,
-                ConversationId = Guid.NewGuid().ToString("N"),  // 生成唯一字符串 ID
+                ConversationId = Guid.NewGuid(),
                 Title = title ?? "新对话"
             };
+            Console.WriteLine("创建 Conversation，内存 Id = " + conv.Id);
+            return conv;
         }
 
         public void AddMessage(ChatMessage message)
@@ -56,6 +52,8 @@ namespace MyProject.Domain.Entities
     public class ChatMessage
     {
         public Guid Id { get; private set; } = Guid.NewGuid();
+        public Guid ConversationId { get; private set; }  // ← 必须加这个外键
+        public Conversation? Conversation { get; private set; }  // 导航属性（可选）
         public bool IsFromUser { get; private set; }
         public string Content { get; private set; } = string.Empty;
         public string? Type { get; private set; }  // "text", "optimize_result" 等

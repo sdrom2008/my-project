@@ -24,16 +24,17 @@ namespace MyProject.Infrastructure.Migrations
 
             modelBuilder.Entity("MyProject.Domain.Entities.ChatMessage", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<byte[]>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
+                        .HasColumnType("binary(16)");
 
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<Guid?>("ConversationId")
-                        .HasColumnType("char(36)");
+                    b.Property<byte[]>("ConversationId")
+                        .IsRequired()
+                        .HasColumnType("binary(16)");
 
                     b.Property<string>("DataJson")
                         .HasColumnType("longtext");
@@ -51,20 +52,18 @@ namespace MyProject.Infrastructure.Migrations
 
                     b.HasIndex("ConversationId");
 
-                    b.ToTable("ChatMessage");
+                    b.ToTable("chatmessage", (string)null);
                 });
 
             modelBuilder.Entity("MyProject.Domain.Entities.Conversation", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<byte[]>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
+                        .HasColumnType("binary(16)");
 
-                    b.Property<string>("ConversationId")
+                    b.Property<byte[]>("ConversationId")
                         .IsRequired()
-                        .HasMaxLength(128)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("binary(16)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
@@ -72,54 +71,44 @@ namespace MyProject.Infrastructure.Migrations
                     b.Property<DateTime?>("LastActiveAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<Guid>("SellerId")
-                        .HasColumnType("char(36)");
+                    b.Property<byte[]>("SellerId")
+                        .IsRequired()
+                        .HasColumnType("binary(16)");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("ConversationId")
-                        .IsUnique();
 
                     b.HasIndex("SellerId");
 
-                    b.ToTable("Conversations");
+                    b.ToTable("conversations", (string)null);
                 });
 
             modelBuilder.Entity("MyProject.Domain.Entities.Seller", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<byte[]>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
+                        .HasColumnType("binary(16)");
 
                     b.Property<string>("AvatarUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("longtext");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Nickname")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("OpenId")
                         .IsRequired()
@@ -127,48 +116,44 @@ namespace MyProject.Infrastructure.Migrations
                         .HasColumnType("varchar(128)");
 
                     b.Property<string>("PasswordHash")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("SubscriptionLevel")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasDefaultValue("Free");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Username")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
                     b.HasIndex("OpenId")
                         .IsUnique();
 
-                    b.ToTable("Sellers", (string)null);
+                    b.ToTable("sellers", (string)null);
                 });
 
             modelBuilder.Entity("MyProject.Domain.Entities.SellerConfig", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<byte[]>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
+                        .HasColumnType("binary(16)");
 
                     b.Property<string>("ApiKey")
                         .HasColumnType("longtext");
 
                     b.Property<string>("CustomRules")
-                        .HasColumnType("json");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("DbConnectionString")
                         .HasColumnType("longtext");
 
-                    b.Property<Guid>("SellerId")
-                        .HasColumnType("char(36)");
+                    b.Property<byte[]>("SellerId")
+                        .IsRequired()
+                        .HasColumnType("binary(16)");
 
                     b.HasKey("Id");
 
@@ -179,10 +164,13 @@ namespace MyProject.Infrastructure.Migrations
 
             modelBuilder.Entity("MyProject.Domain.Entities.ChatMessage", b =>
                 {
-                    b.HasOne("MyProject.Domain.Entities.Conversation", null)
+                    b.HasOne("MyProject.Domain.Entities.Conversation", "Conversation")
                         .WithMany("Messages")
                         .HasForeignKey("ConversationId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
                 });
 
             modelBuilder.Entity("MyProject.Domain.Entities.Conversation", b =>

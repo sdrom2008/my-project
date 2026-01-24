@@ -8,7 +8,6 @@ namespace MyProject.Api.Controllers
     [ApiController]
     [Route("api/agent")]
     [Authorize]  // 需要登录（JWT）
-
     public class AgentController : ControllerBase
     {
         private readonly IConfiguration _config;
@@ -20,10 +19,10 @@ namespace MyProject.Api.Controllers
             _httpClient = factory.CreateClient();
         }
 
-        [HttpPost("optimize-product")]
+        [HttpPost("optimizeproduct")]
         public async Task<IActionResult> OptimizeProduct([FromBody] OptimizeProductRequest request)
         {
-            if (string.IsNullOrEmpty(request.Intent))
+            if (string.IsNullOrEmpty(request.intent))
                 return BadRequest("意图不能为空");
 
             // 获取通义千问 API Key（从配置或环境变量）
@@ -33,14 +32,14 @@ namespace MyProject.Api.Controllers
 
             // 构建 Prompt（核心！）
             var prompt = $@"你是一个中国顶级电商运营专家，精通淘宝/拼多多/抖音详情页优化。
-用户意图：{request.Intent}
+用户意图：{request.intent}
 
 原始商品信息：
-标题：{request.OriginalTitle ?? "未提供"}
-描述：{request.OriginalDescription ?? "未提供"}
-图片数量：{request.OriginalImageUrls?.Count ?? 0}
-类目：{request.Category ?? "未指定"}
-目标平台：{request.TargetPlatform}
+标题：{request.originaltitle ?? "未提供"}
+描述：{request.originaldescription ?? "未提供"}
+图片数量：{request.originalimageurls?.Count ?? 0}
+类目：{request.category ?? "未指定"}
+目标平台：{request.targetplatform}
 
 任务：
 1. 优化标题和详情描述：重写标题（SEO + 高转化），描述结构化（卖点 bullet + 图文建议 + 关键词自然融入）
@@ -49,14 +48,14 @@ namespace MyProject.Api.Controllers
 
 输出严格 JSON 格式：
 {{
-  ""optimized_title"": ""..."",
-  ""optimized_description"": ""... (Markdown)"",
-  ""image_prompts"": [""prompt1"", ""prompt2""],
-  ""marketing_plan"": {{
-    ""short_video_script"": ""..."",
-    ""planting_text"": ""..."",
-    ""live_script"": ""..."",
-    ""key_selling_points"": [""点1"", ""点2""]
+  ""optimizedtitle"": ""..."",
+  ""optimizeddescription"": ""... (Markdown)"",
+  ""imageprompts"": [""prompt1"", ""prompt2""],
+  ""marketingplan"": {{
+    ""shortvideoscript"": ""..."",
+    ""plantingtext"": ""..."",
+    ""livescript"": ""..."",
+    ""keysellingpoints"": [""点1"", ""点2""]
   }}
 }}
 

@@ -18,6 +18,7 @@ namespace MyProject.Infrastructure.Services
 
         public string GenerateJwt(Guid sellerId)
         {
+            Console.WriteLine("GenerateJwt 被调用，传入 sellerId = " + sellerId.ToString());
             // 你的 JWT 生成代码
             var claims = new[]
             {

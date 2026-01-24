@@ -46,13 +46,18 @@ public class AuthController : ControllerBase
             seller = Seller.Create(openId);
             _db.Sellers.Add(seller);
             await _db.SaveChangesAsync();
+            Console.WriteLine("新 Seller 保存成功，Id = " + seller.Id.ToString());
+        }
+        else
+        {
+            Console.WriteLine("找到已有 Seller，Id = " + seller.Id.ToString());
         }
 
         seller.RecordLogin();  // 更新登录时间
         await _db.SaveChangesAsync();
 
         var token = _authService.GenerateJwt(seller.Id);
-
+        Console.WriteLine("生成 JWT 时使用的 sellerId = " + seller.Id.ToString());
         return Ok(new
         {
             token,

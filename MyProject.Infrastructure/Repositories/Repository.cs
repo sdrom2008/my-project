@@ -38,7 +38,12 @@ namespace MyProject.Infrastructure.Repositories
 
         public virtual Task UpdateAsync(T entity)
         {
-            _dbSet.Update(entity);
+            var entry = _context.Entry(entity);
+            if (entry.State == EntityState.Detached)
+            {
+                _dbSet.Attach(entity);
+            }
+            entry.State = EntityState.Modified;
             return Task.CompletedTask;
         }
 
@@ -51,6 +56,11 @@ namespace MyProject.Infrastructure.Repositories
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();
+        }
+
+        public virtual async Task ReloadAsync(T entity)
+        {
+            await _context.Entry(entity).ReloadAsync();
         }
     }
 }
