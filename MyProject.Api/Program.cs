@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MyProject.Application.Interfaces;
-using MyProject.Infrastructure.Agent;
+using MyProject.Infrastructure.Agents;
 using MyProject.Infrastructure.AI;
 using MyProject.Infrastructure.Data;
 using MyProject.Infrastructure.Repositories;

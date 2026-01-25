@@ -5,7 +5,6 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 using MyProject.Application.DTOs;
 using MyProject.Application.Interfaces;
 using MyProject.Domain.Entities;
-using MyProject.Infrastructure.Agent;
 using MyProject.Infrastructure.AI;
 using MyProject.Infrastructure.Data;
 using System.Text.Json;

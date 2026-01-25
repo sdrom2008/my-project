@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MyProject.Application.DTOs;
 using MyProject.Application.Interfaces;
 using MyProject.Domain.Entities;
+using MyProject.Infrastructure.Repositories;
 using System;
 
 [ApiController]
@@ -71,5 +72,22 @@ public class ChatController : ControllerBase
         await Task.CompletedTask; // 修复 CS1998，保留异步签名
 
         return Ok(new { message = "历史消息加载功能开发中" });
+    }
+
+    [HttpGet("conversations")]
+    public async Task<IActionResult> GetConversations()
+    {
+        var sellerId = User.GetSellerId(); // 从 JWT 取
+        var conversations = await _conversationRepository.GetAllAsync(
+            c => c.SellerId == sellerId,
+            orderBy: q => q.OrderByDescending(c => c.LastActiveAt));
+
+        return Ok(conversations.Select(c => new
+        {
+            id = c.Id,
+            title = c.Title,
+            lastMessage = c.Messages.OrderByDescending(m => m.Timestamp).FirstOrDefault()?.Content,
+            lastActiveAt = c.LastActiveAt
+        }));
     }
 }
