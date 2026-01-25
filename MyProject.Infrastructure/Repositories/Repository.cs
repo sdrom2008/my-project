@@ -62,5 +62,86 @@ namespace MyProject.Infrastructure.Repositories
         {
             await _context.Entry(entity).ReloadAsync();
         }
+
+        public async Task<List<T>> GetAllAsync(
+            Expression<Func<T, bool>>? predicate = null,
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
+            Func<IQueryable<T>, IQueryable<T>>? include = null)
+        {
+            IQueryable<T> query = _dbSet;
+
+            if (include != null)
+            {
+                query = include(query);
+            }
+
+            if (predicate != null)
+            {
+                query = query.Where(predicate);
+            }
+
+            if (orderBy != null)
+            {
+                query = orderBy(query);
+            }
+
+            return await query.ToListAsync();
+        }
+
+        public async Task<T?> FirstOrDefaultAsync(
+            Expression<Func<T, bool>> predicate,
+            Func<IQueryable<T>, IQueryable<T>>? include = null)
+        {
+            IQueryable<T> query = _dbSet;
+
+            if (include != null)
+            {
+                query = include(query);
+            }
+
+            return await query.FirstOrDefaultAsync(predicate);
+        }
+
+        /// <summary>
+        /// 统计会话数等
+        /// </summary>
+        /// <param name="predicate"></param>
+        /// <returns></returns>
+        public async Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null)
+        {
+            var query = _dbSet.AsQueryable();
+            if (predicate != null)
+            {
+                query = query.Where(predicate);
+            }
+            return await query.CountAsync();
+        }
+
+        /// <summary>
+        /// 加分页支持（未来会话列表多了用）
+        /// </summary>
+        /// <param name="pageIndex"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="predicate"></param>
+        /// <param name="orderBy"></param>
+        /// <param name="include"></param>
+        /// <returns></returns>
+        public async Task<(List<T> Items, int TotalCount)> GetPagedAsync(
+    int pageIndex, int pageSize,
+    Expression<Func<T, bool>>? predicate = null,
+    Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
+    Func<IQueryable<T>, IQueryable<T>>? include = null)
+        {
+            var query = _dbSet.AsQueryable();
+
+            if (include != null) query = include(query);
+            if (predicate != null) query = query.Where(predicate);
+            if (orderBy != null) query = orderBy(query);
+
+            var total = await query.CountAsync();
+            var items = await query.Skip(pageIndex * pageSize).Take(pageSize).ToListAsync();
+
+            return (items, total);
+        }
     }
 }

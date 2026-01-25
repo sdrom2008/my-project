@@ -8,7 +8,7 @@ namespace MyProject.Api.Controllers
     [ApiController]
     [Route("api/agent")]
     [Authorize]  // 需要登录（JWT）
-    public class AgentController : ControllerBase
+    public class AgentController : BaseApiController
     {
         private readonly IConfiguration _config;
         private readonly HttpClient _httpClient;

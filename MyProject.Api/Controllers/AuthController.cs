@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MyProject.Api.Controllers;
 using MyProject.Application.Interfaces;
 using MyProject.Domain.Entities;
 using MyProject.Infrastructure.Data;
@@ -11,7 +12,7 @@ using System.Text;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController : ControllerBase
+public class AuthController : BaseApiController
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;

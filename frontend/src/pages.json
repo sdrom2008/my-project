@@ -1,5 +1,11 @@
 {
 	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+	{
+	  "path": "pages/chat/list",
+	  "style": {
+	    "navigationBarTitleText": "会话列表"
+	  }
+	},
     {
       "path": "pages/login/index",
       "style": {
@@ -11,7 +17,7 @@
       "style": {
         "navigationBarTitleText": "聊天"
       }
-    }
+	}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",

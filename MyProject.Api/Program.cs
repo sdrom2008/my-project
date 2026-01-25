@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MyProject.Application.Interfaces;
+using MyProject.Domain.Entities;
 using MyProject.Infrastructure.Agents;
 using MyProject.Infrastructure.AI;
 using MyProject.Infrastructure.Data;
@@ -18,6 +19,8 @@ builder.Services.AddControllers();  // ← 必须加这一行！注册所有 Controller
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAiChatService, AiChatService>();
 
+
+
 // 注册意图分类器
 builder.Services.AddScoped<IIntentClassifier, KeywordIntentClassifier>();
 // 注册 AgentRouter
@@ -32,6 +35,10 @@ builder.Services.AddSingleton<SemanticKernelConfig>();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 // 如果用了专用仓储
 builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
+
+builder.Services.AddScoped<IRepository<Conversation>, Repository<Conversation>>();
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
 
 builder.Services.AddHttpClient();  // HttpClient 工厂
 

@@ -69,12 +69,49 @@ namespace MyProject.Infrastructure.Agents
 ");
 
                 // 加载历史
+                // 加载历史消息（优化版）
                 if (context.CurrentConversation != null)
                 {
-                    foreach (var msg in context.CurrentConversation.Messages.OrderByDescending(m => m.Timestamp).Take(10).Reverse())
+                    var allMessages = context.CurrentConversation.Messages
+                        .OrderByDescending(m => m.Timestamp)
+                        .ToList();
+
+                    // 优先保留最近的 5 条优化结果（核心上下文）
+                    var optimizeMessages = allMessages
+                        .Where(m => m.Type == "optimize_result")
+                        .Take(5)
+                        .OrderBy(m => m.Timestamp)  // 按时间正序加到 history
+                        .ToList();
+
+                    // 再补齐最近的 15 条任意消息（填充上下文）
+                    var recentMessages = allMessages
+                        .Take(15)
+                        .Where(m => !optimizeMessages.Contains(m))  // 避免重复
+                        .OrderBy(m => m.Timestamp)
+                        .ToList();
+
+                    // 合并：先加优化消息，再加普通消息
+                    var messagesToAdd = optimizeMessages.Concat(recentMessages).ToList();
+
+                    foreach (var msg in messagesToAdd)
                     {
                         chatHistory.AddMessage(msg.IsFromUser ? AuthorRole.User : AuthorRole.Assistant, msg.Content);
                     }
+
+                    Console.WriteLine($"加载历史消息：优化消息 {optimizeMessages.Count} 条 + 普通消息 {recentMessages.Count} 条");
+                }
+
+                if (chatHistory.Count > 30 || chatHistory.ToString().Length > 8000)
+                {
+                    Console.WriteLine("历史过长，进行截断...");
+                    // 保留系统 prompt + 最后 20 条
+                    var trimmed = new ChatHistory();
+                    trimmed.AddSystemMessage(chatHistory[0].Content);  // 保留系统 prompt
+                    foreach (var msg in chatHistory.Skip(Math.Max(0, chatHistory.Count - 20)))
+                    {
+                        trimmed.AddMessage(msg.Role, msg.Content);
+                    }
+                    chatHistory = trimmed;
                 }
 
                 chatHistory.AddUserMessage(context.UserMessage);

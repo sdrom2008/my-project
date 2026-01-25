@@ -1,20 +1,16 @@
 <template>
-  <view class="chat-page">
-    <!-- 顶部标题栏 -->
+  <view class="chat-container">
     <view class="header">
       <text>智能店小二</text>
       <text class="seller-name">{{ nickname || '商家' }}</text>
     </view>
 
-    <!-- 消息列表（占满剩余空间） -->
-    <scroll-view scroll-y class="messages" :scroll-top="scrollTop">
+    <scroll-view class="messages" scroll-y :scroll-top="scrollTop">
       <view v-for="(msg, index) in messages" :key="index" :class="msg.isFromUser ? 'user-msg' : 'ai-msg'">
-        <!-- 普通文本 -->
         <view v-if="msg.messageType === 'text' || !msg.messageType" class="text-bubble">
           {{ msg.content }}
         </view>
 
-        <!-- 商品优化结果卡片 -->
         <view v-if="msg.messageType === 'optimize_result'" class="optimize-card">
           <view class="card-header">商品优化完成！</view>
 
@@ -56,41 +52,99 @@
           </view>
         </view>
       </view>
+
+      <view v-if="loadingHistory" class="loading">
+        <text>加载历史消息...</text>
+      </view>
+      <view v-if="sending" class="loading">
+        <text>AI 思考中...</text>
+      </view>
     </scroll-view>
 
-    <!-- 输入区（固定底部） -->
     <view class="input-bar">
-      <input v-model="inputMessage" placeholder="说点什么...（例如：帮我优化T恤详情）" />
-      <button @click="sendMessage" :disabled="sending || !inputMessage.trim()">发送</button>
+      <input 
+        v-model="inputMessage" 
+        placeholder="说点什么...（例如：帮我优化T恤详情）" 
+        confirm-type="send" 
+        @confirm="sendMessage" 
+      />
+      <button @tap="sendMessage" :disabled="sending || !inputMessage.trim()">发送</button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 
 const messages = ref<any[]>([])
 const inputMessage = ref('')
 const sending = ref(false)
+const loadingHistory = ref(false)
 const scrollTop = ref(0)
 const nickname = ref(uni.getStorageSync('nickname') || '商家')
 const conversationId = ref<string>('')
 
-onMounted(() => {
+const BASE_URL = 'https://127.0.0.1:7092'  // ← 替换成你的真实地址
+
+onMounted(async () => {
   const savedId = uni.getStorageSync('currentConversationId')
   if (savedId) {
     conversationId.value = savedId
-    console.log('加载会话ID:', conversationId.value)
+    console.log('恢复会话ID:', conversationId.value)
+    await loadHistory()  // 加载历史消息
   }
 
-  messages.value.push({
-    isFromUser: false,
-    messageType: 'text',
-    content: `欢迎 ${nickname.value}！我是你的智能店小二，一句话告诉我需求，我来帮你优化商品、生成营销短语、做客服~`
-  })
+  // 欢迎语（只在新建会话时显示）
+  if (!savedId && messages.value.length === 0) {
+    messages.value.push({
+      isFromUser: false,
+      messageType: 'text',
+      content: `欢迎 ${nickname.value}！我是你的智能店小二，一句话告诉我需求，我来帮你优化商品、生成营销短语、做客服~`
+    })
+  }
+
+  await nextTick()
+  scrollTop.value = 999999
 })
 
-watch(messages, () => {
+const loadHistory = async () => {
+  if (!conversationId.value) return
+
+  loadingHistory.value = true
+
+  try {
+    const token = uni.getStorageSync('token')
+    if (!token) return uni.reLaunch({ url: '/pages/login/index' })
+
+    const res = await uni.request({
+      url: `${BASE_URL}/api/chat/conversation/${conversationId.value}`,
+      header: { 'Authorization': `Bearer ${token}` }
+    }) as any
+
+    if (res.statusCode === 200) {
+      const history = res.data.messages || []
+      messages.value = history.map((m: any) => ({
+        isFromUser: m.isFromUser,
+        messageType: m.messageType,
+        content: m.content,
+        data: m.data
+      }))
+      console.log('加载历史消息成功:', messages.value.length, '条')
+    } else {
+      uni.showToast({ title: '加载历史失败', icon: 'error' })
+    }
+  } catch (err) {
+    console.error('加载历史异常:', err)
+    uni.showToast({ title: '网络错误', icon: 'error' })
+  } finally {
+    loadingHistory.value = false
+    await nextTick()
+    scrollTop.value = 999999
+  }
+}
+
+watch(messages, async () => {
+  await nextTick()
   scrollTop.value = 999999
 }, { deep: true })
 
@@ -116,8 +170,6 @@ const sendMessage = async () => {
       return
     }
 
-    const BASE_URL = 'https://127.0.0.1:7092'  // 替换成你的地址
-
     console.log('发送消息，会话ID:', conversationId.value || '新建')
 
     const res = await uni.request({
@@ -138,12 +190,16 @@ const sendMessage = async () => {
     if (res.statusCode === 200) {
       const reply = res.data
 
-      // 追加所有新消息（去重）
-      const newMessages = reply.messages?.filter((m: any) => 
-        !messages.value.some(existing => existing.content === m.content && existing.isFromUser === m.isFromUser)
-      ) || []
+      if (!reply.success) {
+        uni.showToast({ title: reply.errorMessage || 'AI 处理失败', icon: 'error' })
+        return
+      }
 
-      messages.value.push(...newMessages)
+      // 追加新消息
+      const newMessages = reply.messages || []
+      messages.value.push(...newMessages.filter((m: any) => 
+        !messages.value.some(existing => existing.content === m.content)
+      ))
 
       // 更新会话ID
       if (reply.conversationId && reply.conversationId !== conversationId.value) {
@@ -152,13 +208,18 @@ const sendMessage = async () => {
         uni.setStorageSync('currentConversationId', reply.conversationId)
       }
 
+      await nextTick()
       scrollTop.value = 999999
     } else {
       uni.showToast({ title: res.data?.message || '发送失败', icon: 'error' })
+      if (res.statusCode === 401) {
+        uni.removeStorageSync('token')
+        uni.reLaunch({ url: '/pages/login/index' })
+      }
     }
   } catch (err) {
     console.error('发送异常:', err)
-    uni.showToast({ title: '网络错误', icon: 'error' })
+    uni.showToast({ title: '网络错误，请检查地址', icon: 'error' })
   } finally {
     sending.value = false
   }
@@ -166,35 +227,39 @@ const sendMessage = async () => {
 </script>
 
 <style>
-.chat-page {
+.chat-container {
   height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
 .header {
-  padding: 20rpx;
+  padding: 30rpx;
   background: #07c160;
   color: white;
   text-align: center;
-  font-size: 36rpx;
+  font-size: 40rpx;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
 }
 
 .messages {
   flex: 1;
-  padding: 20rpx;
+  padding: 160rpx 20rpx 160rpx 20rpx;
   background: #f8f8f8;
-  overflow-y: auto;
 }
 
 .user-msg {
   text-align: right;
-  margin: 20rpx 0;
+  margin: 30rpx 0;
 }
 
 .ai-msg {
   text-align: left;
-  margin: 20rpx 0;
+  margin: 30rpx 0;
 }
 
 .text-bubble {
@@ -250,7 +315,7 @@ const sendMessage = async () => {
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
+  z-index: 100;
 }
 
 input {
@@ -266,5 +331,12 @@ button {
   background: #07c160;
   color: white;
   border-radius: 50rpx;
+}
+
+.loading {
+  text-align: center;
+  padding: 40rpx;
+  color: #999;
+  font-size: 28rpx;
 }
 </style>

@@ -242,6 +242,7 @@ public class AiChatService : IAiChatService
     {
         var conversation = await GetOrCreateConversation(sellerId, command.ConversationId);
 
+        // 添加用户消息
         var userMsg = ChatMessage.FromUser(command.Message);
         conversation.AddMessage(userMsg);
         _context.ChatMessages.Add(userMsg);
