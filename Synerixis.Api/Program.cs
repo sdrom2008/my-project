@@ -1,60 +1,40 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Synerixis.Application.Agents;
 using Synerixis.Application.Interfaces;
+using Synerixis.Application.Services;
 using Synerixis.Domain.Entities;
 using Synerixis.Infrastructure.Agent;
 using Synerixis.Infrastructure.AI;
 using Synerixis.Infrastructure.Data;
 using Synerixis.Infrastructure.Repositories;
 using Synerixis.Infrastructure.Services;
-using System;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();  // ← 必须加这一行！注册所有 Controller
+// 添加控制器支持
+builder.Services.AddControllers();
 
-// Add services to the container.
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IAiChatService, AiChatService>();
-builder.Services.AddScoped<IGeneralChatAgent, GeneralChatAgent>();
+// 添加 OpenAPI/Swagger（可选，开发时方便）
+builder.Services.AddEndpointsApiExplorer();
+//builder.Services.AddSwaggerGen();
 
-// 注册意图分类器
-//builder.Services.AddScoped<IIntentClassifier, KeywordIntentClassifier>(); //老的意图分类器
-builder.Services.AddSingleton<IIntentClassifier, Synerixis.Application.Services.IntentClassifier>();
-
-// 注册 AgentRouter
-builder.Services.AddScoped<AgentRouter>();
-// 注册具体 Agent
-builder.Services.AddScoped<IAgent, ProductOptimizationAgent>();
-// 未来其他 Agent 类似 AddScoped<IAgent, XxxAgent>();
-
-//ai 单例配置
-builder.Services.AddSingleton<SemanticKernelConfig>();
-// 泛型仓储（推荐）
-builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-// 如果用了专用仓储
-builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
-
-builder.Services.AddScoped<IRepository<Conversation>, Repository<Conversation>>();
-builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-
-
-builder.Services.AddHttpClient();  // HttpClient 工厂
-
-// CORS
+// CORS（允许所有，生产环境建议收紧）
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
 
-// JWT
+// JWT 认证
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.TokenValidationParameters = new()
+        options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
@@ -66,6 +46,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddAuthorization();
+
 // EF Core + MySQL
 builder.Services.AddDbContext<AppDbContext>(opt =>
 {
@@ -73,23 +55,56 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseMySql(conn, ServerVersion.AutoDetect(conn), mysql => mysql.EnableRetryOnFailure());
 });
 
-// 如果用 Health Checks，添加
+
+// Semantic Kernel 配置
+builder.Services.AddSingleton<SemanticKernelConfig>();
+
+// 泛型仓储（推荐只注册一次）
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
+// 专用仓储（如果有）
+builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
+
+// 业务服务
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAiChatService, AiChatService>();
+builder.Services.AddScoped<IGeneralChatAgent, GeneralChatAgent>();
+
+// 意图分类器（用 LLM 版本）
+builder.Services.AddScoped<IIntentClassifier, IntentClassifier>();
+
+// AgentRouter（必须在所有 Agent 注册后）
+builder.Services.AddScoped<AgentRouter>();
+
+// 具体 Agent（多实现，AgentRouter 会用它们）
+builder.Services.AddScoped<IAgent, ProductOptimizationAgent>();
+// IChatCompletionService（如果 Agent 或 Classifier 直接依赖它）
+builder.Services.AddScoped<IChatCompletionService>(sp =>
+    sp.GetRequiredService<SemanticKernelConfig>().Kernel.GetRequiredService<IChatCompletionService>());
+
+
+// HttpClient 工厂（如果 Agent 里需要调用外部 API）
+builder.Services.AddHttpClient();
+
+// Health Checks（可选）
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("Database");
 
 var app = builder.Build();
 
+// 中间件管道
 app.UseCors("AllowAll");
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+//if (app.Environment.IsDevelopment())
+//{
+//    app.UseSwagger();
+//    app.UseSwaggerUI();
+//}
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();

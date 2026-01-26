@@ -10,20 +10,15 @@ namespace Synerixis.Application.Interfaces
     public interface IAiChatService
     {
         /// <summary>
-        /// 聊天交互
-        /// </summary>
-        /// <param name="userId"></param>
-        /// <param name="request"></param>
-        /// <returns></returns>
-        //Task<ChatResponse> ChatAsync(Guid userId, ChatRequest request);
-
-        /// <summary>
         /// 
         /// </summary>
         /// <param name="userId"></param>
         /// <param name="command"></param>
         /// <returns></returns>
-        Task<ChatMessageReplyDto> ProcessUserMessageAsync(Guid userId, SendChatMessageCommand command);
+        Task<ChatMessageReplyDto> ProcessUserMessageAsync(Guid sellerId,
+            Guid? conversationId,
+            string message,
+            Dictionary<string, string>? extraData = null);
 
         /// <summary>
         /// 

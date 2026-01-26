@@ -107,6 +107,86 @@ onMounted(async () => {
   scrollTop.value = 999999
 })
 
+onLoad(options) {
+  this.data.conversationId = options.conversationId || '';
+
+  if (this.data.conversationId) {
+    this.loadHistoryMessages();
+  }
+},
+async loadHistoryMessages() {
+  try {
+    const res = await uni.request({
+      url: `${BASE_URL}/api/chat/history`,
+      method: 'GET',
+      data: { conversationId: this.data.conversationId }
+    });
+
+    if (res.data.success) {
+      const history = res.data.data.messages.map(msg => ({
+        id: msg.timestamp,
+        role: msg.isFromUser ? 'user' : 'assistant',
+        type: msg.messageType,
+        content: msg.content,
+        data: msg.data
+      }));
+
+      this.setData({
+        messages: history.reverse() // 倒序显示，最新在下
+      });
+      this.scrollToBottom();
+    }
+  } catch (e) {
+    uni.showToast({ title: '加载历史失败', icon: 'none' });
+  }
+}
+
+async sendMessage() {
+  const content = this.data.inputValue.trim();
+  if (!content) return;
+
+  // 先渲染用户消息
+  const userMsg = { role: 'user', type: 'text', content, id: Date.now() };
+  this.data.messages.push(userMsg);
+  this.setData({ messages: this.data.messages, inputValue: '' });
+  this.scrollToBottom();
+
+  try {
+    const res = await uni.request({
+      url: `${BASE_URL}/api/chat/message`,
+      method: 'POST',
+      data: {
+        conversationId: this.data.conversationId,
+        sellerId: wx.getStorageSync('sellerId'), // 从登录获取
+        content
+      }
+    });
+
+    if (res.data.success) {
+      const aiMsgs = res.data.messages.filter(m => !m.isFromUser).map(msg => ({
+        role: 'assistant',
+        type: msg.messageType,
+        content: msg.content,
+        data: msg.data,
+        id: Date.now() + Math.random()
+      }));
+
+      this.data.messages.push(...aiMsgs);
+      this.setData({ messages: this.data.messages });
+      this.scrollToBottom();
+
+      // 更新 conversationId（如果首次创建）
+      if (!this.data.conversationId && res.data.conversationId) {
+        this.setData({ conversationId: res.data.conversationId });
+      }
+    } else {
+      uni.showToast({ title: res.data.errorMessage || '发送失败', icon: 'none' });
+    }
+  } catch (e) {
+    uni.showToast({ title: '网络错误', icon: 'none' });
+  }
+}
+
 const loadHistory = async () => {
   if (!conversationId.value) return
 

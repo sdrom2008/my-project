@@ -57,8 +57,28 @@ namespace Synerixis.Api.Controllers
                 return Unauthorized("无效的商家身份");
             }
 
-            // 3. 调用 Application 层服务处理（核心业务逻辑）
-            var reply = await _aiChatService.ProcessUserMessageAsync(sellerId, command);
+            // 3. 提取 4 个核心参数
+            Guid? conversationId = command.ConversationId;           // 可为 null，表示新建
+            string message = command.Message.Trim();
+            var extraData = command.ExtraData;                       // 可为 null
+
+            // 4. 调用核心服务（4 参数版本）
+            ChatMessageReplyDto reply;
+            try
+            {
+                reply = await _aiChatService.ProcessUserMessageAsync(
+                    sellerId,
+                    conversationId,
+                    message,
+                    extraData);
+            }
+            catch (Exception ex)
+            {
+                // 可加日志
+                // _logger.LogError(ex, "处理消息失败: SellerId={SellerId}", sellerId);
+                return StatusCode(500, new { message = "服务器内部错误，请稍后再试" });
+            }
+            //var reply = await _aiChatService.ProcessUserMessageAsync(sellerId, command.ConversationId, command.Message,command.ExtraData);
 
             // 4. 返回结构化结果
             return Ok(reply);
@@ -86,7 +106,7 @@ namespace Synerixis.Api.Controllers
 
             var result = conversations.Select(c => new
             {
-                id = c.Id.ToString(),
+                id = c.Id,
                 title = c.Title,
                 lastMessage = c.Messages.OrderByDescending(m => m.Timestamp).FirstOrDefault()?.Content ?? "暂无消息",
                 lastActiveAt = c.LastActiveAt?.ToString("yyyy-MM-dd HH:mm")
