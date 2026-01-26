@@ -1,16 +1,18 @@
 ﻿using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
-using Synerixis.Domain.Entities;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
+using Synerixis.Application.DTOs;
+using Synerixis.Application.Interfaces;
+using Synerixis.Domain.Entities;
+using Synerixis.Domain.Enums;
+using Synerixis.Infrastructure.AI;
 using System.Text.Json;
+using static Synerixis.Application.Interfaces.IAgent;
 using NewtonsoftJson = Newtonsoft.Json.JsonSerializer;   // 别名
 using SystemTextJson = System.Text.Json.JsonSerializer;  // 别名
-using Newtonsoft.Json.Linq;
-using Synerixis.Application.Interfaces;
-using Synerixis.Application.DTOs;
-using Synerixis.Infrastructure.AI;
 
 namespace Synerixis.Infrastructure.Agent
 {
@@ -18,6 +20,8 @@ namespace Synerixis.Infrastructure.Agent
     {
         public string Name => "商品优化";
         public string Description => "优化商品标题、描述、生成营销方案和图片prompt";
+
+        public ChatIntent SupportedIntent => ChatIntent.ProductOptimization;
 
         private readonly SemanticKernelConfig _skConfig;
 
@@ -78,7 +82,7 @@ namespace Synerixis.Infrastructure.Agent
 
                     // 优先保留最近的 5 条优化结果（核心上下文）
                     var optimizeMessages = allMessages
-                        .Where(m => m.Type == "optimize_result")
+                        .Where(m => m.MessageType == "optimize_result")
                         .Take(5)
                         .OrderBy(m => m.Timestamp)  // 按时间正序加到 history
                         .ToList();
@@ -221,6 +225,24 @@ namespace Synerixis.Infrastructure.Agent
                     errorMessage = ex.Message
                 };
             }
+        }
+
+        public async Task<AgentProcessResult> ProcessAsync(string userInput, ChatContext context)
+        {
+            // TODO: 调用商品优化逻辑、LLM 等
+            // 临时 mock
+            var mockMsg = new ChatMessageDto
+            {
+                IsFromUser = false,
+                Content = "商品优化建议已生成～（mock）",
+                MessageType = "product_opt",
+                Data = new { TitleSuggestion = "新标题建议", Reason = "更吸引眼球" }
+            };
+
+            return new AgentProcessResult(
+                Messages: new List<ChatMessageDto> { mockMsg },
+                Success: true
+            );
         }
     }
 }

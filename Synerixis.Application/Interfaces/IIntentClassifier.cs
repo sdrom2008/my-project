@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Synerixis.Application.DTOs;
+using Synerixis.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +10,9 @@ namespace Synerixis.Application.Interfaces
 {
     public interface IIntentClassifier
     {
-        Task<string> ClassifyAsync(string userMessage, CancellationToken ct = default);
+        /// <summary>
+        /// 根据用户输入和最近对话历史，分类意图
+        /// </summary>
+        Task<ChatIntent> ClassifyAsync(string userInput, IReadOnlyList<ChatMessageDto> recentHistory);
     }
 }

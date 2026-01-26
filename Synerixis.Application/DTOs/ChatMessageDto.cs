@@ -10,7 +10,8 @@ namespace Synerixis.Application.DTOs
     {
         public bool IsFromUser { get; set; }
         public string Content { get; set; } = string.Empty;
-        public string? Type { get; set; }
-        public object? Data { get; set; }  // 反序列化后的结构化数据
+        public string MessageType { get; set; } = "text";  // text, order_card, product_opt, image, etc.
+        public object? Data { get; set; }                  // 结构化数据
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }
 }

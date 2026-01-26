@@ -127,7 +127,7 @@ namespace Synerixis.Api.Controllers
                 {
                     isFromUser = m.IsFromUser,
                     content = m.Content,
-                    messageType = m.Type,
+                    messageType = m.MessageType,
                     data = m.DataJson != null
                         ? JsonSerializer.Deserialize<object>(m.DataJson)
                         : null

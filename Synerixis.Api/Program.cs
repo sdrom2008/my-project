@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Synerixis.Application.Agents;
 using Synerixis.Application.Interfaces;
 using Synerixis.Domain.Entities;
 using Synerixis.Infrastructure.Agent;
@@ -18,11 +19,12 @@ builder.Services.AddControllers();  // ← 必须加这一行！注册所有 Controller
 // Add services to the container.
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAiChatService, AiChatService>();
-
-
+builder.Services.AddScoped<IGeneralChatAgent, GeneralChatAgent>();
 
 // 注册意图分类器
-builder.Services.AddScoped<IIntentClassifier, KeywordIntentClassifier>();
+//builder.Services.AddScoped<IIntentClassifier, KeywordIntentClassifier>(); //老的意图分类器
+builder.Services.AddSingleton<IIntentClassifier, Synerixis.Application.Services.IntentClassifier>();
+
 // 注册 AgentRouter
 builder.Services.AddScoped<AgentRouter>();
 // 注册具体 Agent

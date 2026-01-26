@@ -25,6 +25,14 @@ namespace Synerixis.Application.Interfaces
         /// <returns></returns>
         Task<ChatMessageReplyDto> ProcessUserMessageAsync(Guid userId, SendChatMessageCommand command);
 
-        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="conversationId"></param>
+        /// <param name="userInput"></param>
+        /// <param name="sellerId"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        Task<SynerixisResponse> HandleMessageAsync(string conversationId,string userInput,string sellerId,CancellationToken ct = default);
     }
 }
