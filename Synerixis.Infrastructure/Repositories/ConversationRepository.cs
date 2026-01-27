@@ -15,7 +15,8 @@ namespace Synerixis.Infrastructure.Repositories
 {
     public class ConversationRepository : Repository<Conversation>, IConversationRepository
     {
-        public ConversationRepository(AppDbContext context) : base(context) { }
+        public ConversationRepository(AppDbContext context) : base(context) {
+        }
 
         public async Task<Conversation?> GetWithMessagesAsync(Guid id)
         {
@@ -31,18 +32,23 @@ namespace Synerixis.Infrastructure.Repositories
             if (!Guid.TryParse(sellerId, out var sellerGuid))
                 throw new ArgumentException("无效的 sellerId");
 
+            if (!messages.Any())
+                throw new ArgumentException("没有消息可保存");
+
             var conv = await _dbSet
                 .Include(c => c.Messages)
                 .FirstOrDefaultAsync(c => c.Id == convGuid && c.SellerId == sellerGuid);
 
+            await _context.SaveChangesAsync();
+
             if (conv == null)
             {
-                var firstMsg = messages.FirstOrDefault();
-                if (firstMsg == null)
-                    throw new InvalidOperationException("没有消息，无法创建会话");
-
-                conv = Conversation.Create(sellerGuid);
+                var firstMsg = messages.First();
+                //conv = Conversation.Create(sellerGuid);
                 _dbSet.Add(conv);
+
+                //新建会话后 立即保存
+                await _context.SaveChangesAsync();
             }
 
             foreach (var dto in messages)
@@ -62,13 +68,14 @@ namespace Synerixis.Infrastructure.Repositories
                         data: dataObj
                     );
                 }
+
                 conv.Messages.Add(msg);
             }
 
             try
             {
                 await _context.SaveChangesAsync();
-                return;  // 成功，退出
+                // 可加日志：_logger.LogInformation("保存消息成功 - 会话ID: {ConvId}, 消息数: {Count}", conv.Id, messages.Count());
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -82,19 +89,27 @@ namespace Synerixis.Infrastructure.Repositories
 
                 if (databaseValues == null)
                 {
-                    // 记录已被删除
                     throw new InvalidOperationException("会话已被删除，请新建会话");
                 }
 
-                // 重新加载客户端值（覆盖数据库变化，或合并）
+                // 覆盖重试
                 entry.OriginalValues.SetValues(databaseValues);
-                entry.CurrentValues.SetValues(databaseValues);  // 简单覆盖：以当前实体为准
+                entry.CurrentValues.SetValues(databaseValues);
 
-                // 如果需要合并自定义逻辑：读取 databaseValues，合并 Messages 等
-                // 示例：var dbConv = (Conversation)databaseValues.ToObject();
-                // 然后合并 Messages...
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    // _logger.LogWarning("并发冲突已自动解决 - 会话ID: {ConvId}", conv.Id);
+                }
+                catch (Exception retryEx)
+                {
+                    throw new InvalidOperationException($"保存失败，已重试并发冲突: {retryEx.Message}", retryEx);
+                }
             }
-
+            catch (DbUpdateException ex)
+            {
+                throw new InvalidOperationException($"数据库更新失败: {ex.InnerException?.Message ?? ex.Message}", ex);
+            }
         }
 
         public async Task<ChatContext> GetContextAsync(string conversationId, string sellerId)

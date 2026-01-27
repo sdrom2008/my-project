@@ -35,10 +35,7 @@ namespace Synerixis.Infrastructure.Services
         public async Task<SynerixisResponse> HandleMessageAsync(string conversationId, string userInput, string sellerId)
         {
             var context = await _conversationRepository.GetContextAsync(conversationId, sellerId);
-            var messages = new List<ChatMessageDto>
-        {
-            new() { IsFromUser = true, Content = userInput, MessageType = "text" }
-        };
+            var messages = new List<ChatMessageDto>{new() { IsFromUser = true, Content = userInput, MessageType = "text" }};
 
             try
             {
@@ -111,20 +108,36 @@ namespace Synerixis.Infrastructure.Services
 
         public async Task<ChatMessageReplyDto> ProcessUserMessageAsync(Guid sellerId,Guid? conversationId,string message,Dictionary<string, string>? extraData = null)
         {
+            _logger.LogInformation("ProcessUserMessageAsync - SellerId: {SellerId}, ConvId: {ConvId}, Msg: {Msg}", sellerId, conversationId, message);
+
             // 1. 处理 conversationId：如果 null，创建新会话
             Guid actualConvId;
 
-            if (!conversationId.HasValue)
+            if (!conversationId.HasValue || conversationId == Guid.Empty)
             {
+                // 新建
                 var newConv = Conversation.Create(sellerId, "新对话 - " + DateTime.UtcNow.ToString("MM-dd HH:mm"));
                 await _conversationRepository.AddAsync(newConv);
-                await _conversationRepository.SaveChangesAsync();  // 假设 Repository 有 SaveChangesAsync 方法，或用 _context.SaveChangesAsync()
                 actualConvId = newConv.Id;
-                _logger.LogInformation("创建新会话 ID: {ConvId} for Seller: {SellerId}", actualConvId, sellerId);
+                _logger.LogInformation("创建新会话 ID: {ConvId}", actualConvId);
             }
             else
             {
                 actualConvId = conversationId.Value;
+                var existingConv = await _conversationRepository.GetWithMessagesAsync(actualConvId);
+                if (existingConv == null || existingConv.SellerId != sellerId)
+                {
+                    _logger.LogWarning("会话不存在或无权限 - ConvId: {ConvId}", actualConvId);
+                    // 自动新建
+                    var newConv = Conversation.Create(sellerId, "新对话 - " + DateTime.UtcNow.ToString("MM-dd HH:mm"));
+                    await _conversationRepository.AddAsync(newConv);
+                    actualConvId = newConv.Id;
+                    _logger.LogInformation("原会话无效，已新建 ID: {ConvId}", actualConvId);
+                }
+                else
+                {
+                    _logger.LogInformation("使用已有会话 ID: {ConvId}", actualConvId);
+                }
             }
 
             // 2. 获取当前上下文
@@ -153,15 +166,15 @@ namespace Synerixis.Infrastructure.Services
                 // 默认自然聊天
                 var aiReplyText = await _generalChatAgent.GenerateReplyAsync(message, context);
                 replyMsgs = new List<ChatMessageDto>
-            {
-                new ChatMessageDto
-                {
-                    IsFromUser = false,
-                    Content = aiReplyText,
-                    MessageType = "text",
-                    Timestamp = DateTime.UtcNow
-                }
-            };
+                            {
+                                new ChatMessageDto
+                                {
+                                    IsFromUser = false,
+                                    Content = aiReplyText,
+                                    MessageType = "text",
+                                    Timestamp = DateTime.UtcNow
+                                }
+                            };
             }
             else
             {

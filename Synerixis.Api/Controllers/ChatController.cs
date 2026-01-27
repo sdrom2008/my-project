@@ -46,7 +46,7 @@ namespace Synerixis.Api.Controllers
                 return BadRequest(new { message = "消息内容不能为空" });
             }
 
-            // 2. 从 JWT 获取当前商家 ID（使用扩展方法）
+            // 2. 获取当前商家 ID
             Guid sellerId;
             try
             {
@@ -57,18 +57,10 @@ namespace Synerixis.Api.Controllers
                 return Unauthorized("无效的商家身份");
             }
 
-            // 3. 提取 4 个核心参数
-            Guid conversationId;
-            if (!command.ConversationId.HasValue || command.ConversationId.Value == Guid.Empty)
-            {
-                conversationId = Guid.NewGuid();
-            }
-            else
-            {
-                conversationId = command.ConversationId.Value;
-            }
+            // 3. 不要在这里生成新 Guid，直接传原值（null 或 Empty 表示新建）
+            Guid? conversationId = command.ConversationId;  // 保持前端传的
             string message = command.Message.Trim();
-            var extraData = command.ExtraData;                       // 可为 null
+            var extraData = command.ExtraData;
 
             // 4. 调用核心服务（4 参数版本）
             ChatMessageReplyDto reply;

@@ -28,11 +28,12 @@
 export default {
   data() {
     return {
-      id: '',  // conversationId
+      id: '',  // conversationId (string 类型)
       messages: [],
       inputText: '',
       sending: false,
-      scrollId: ''
+      scrollId: '',
+	  isNewChat: true  // 新增标志：是否新会话
     };
   },
   
@@ -53,109 +54,128 @@ export default {
 },
 
   onLoad(options) {
-    console.log('聊天页 onLoad 参数：', options);
+    console.log('onLoad 参数：', options);
 
-    // 优先 conversationId
-    this.id = options.conversationId || options.id || '';
+    // 1. 先从 storage 恢复（最高优先）
+    this.id = uni.getStorageSync('conversationId') || '';
 
-    console.log('当前 conversationId：', this.id);
+    // 2. 如果 URL 参数有 conversationId，用它覆盖（从列表跳转）
+    if (options.conversationId || options.id) {
+      this.id = options.conversationId || options.id;
+      uni.setStorageSync('conversationId', this.id);  // 同步 storage
+      this.isNewChat = false;
+    }
 
-    if (this.id) {
-      console.log('开始加载历史，会话ID：', this.id);
+    console.log('初始化 conversationId：', this.id);
+
+    if (this.id && !this.isNewChat) {
+      console.log('加载历史，会话ID：', this.id);
       this.loadHistory();
     } else {
-      console.log('新建会话，无 ID');
+      console.log('新会话，无需加载历史');
     }
 
     this.scrollToBottom();
   },
+  onShow() {
+    // 页面显示时再同步一次 storage（防切换 tab 丢失）
+    const storedId = uni.getStorageSync('conversationId');
+    if (storedId && storedId !== this.id) {
+      this.id = storedId;
+      this.isNewChat = false;
+      this.loadHistory();
+    }
+  },
 
   methods: {
-    async loadHistory() {
-      const token = uni.getStorageSync('token');
-      try {
-        const res = await uni.request({
-          url: testbase+`/api/chat/conversation/${this.id}`,
-          header: { Authorization: `Bearer ${token}` }
-        });
-
-        if (res.statusCode === 200 && res.data.messages) {
-          this.messages = res.data.messages.map(m => ({
-            role: m.isFromUser ? 'user' : 'assistant',
-            type: m.messageType,
-            content: m.content,
-            id: Date.now() + Math.random()
-          }));
-          this.scrollToBottom();
+     async loadHistory() {
+        if (!this.id) return;
+  
+        const token = uni.getStorageSync('token');
+        try {
+          console.log('加载历史 - ID:', this.id);
+          const res = await uni.request({
+            url: `${testbase}/api/chat/conversation/${this.id}`,
+            header: { Authorization: `Bearer ${token}` }
+          });
+  
+          if (res.statusCode === 200 && res.data.messages) {
+            this.messages = res.data.messages.map(m => ({
+              role: m.isFromUser ? 'user' : 'assistant',
+              type: m.messageType,
+              content: m.content,
+              id: Date.now() + Math.random()
+            }));
+            this.scrollToBottom();
+          } else {
+            uni.showToast({ title: '加载历史失败', icon: 'none' });
+          }
+        } catch (e) {
+          uni.showToast({ title: '网络错误', icon: 'none' });
         }
-      } catch (e) {
-        uni.showToast({ title: '加载历史失败', icon: 'none' });
-      }
-    },
+      },
+  
+      async send() {
+        const text = this.inputText.trim();
+        if (!text) return;
+  
+        const userMsg = { role: 'user', type: 'text', content: text, id: Date.now() };
+        this.messages.push(userMsg);
+        this.inputText = '';
+        this.scrollToBottom();
+  
+        this.sending = true;
+  
+        try {
+          const sendId = this.id || '00000000-0000-0000-0000-000000000000';
+          console.log('发送 - ConversationId:', sendId);
+  
+          const res = await uni.request({
+            url: `${testbase}/api/chat/send`,
+            method: 'POST',
+            header: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${uni.getStorageSync('token')}`
+            },
+            data: {
+              ConversationId: sendId,
+              Message: text
+            }
+          });
+  
+          console.log('响应：', res);
+  
+          if (res.statusCode === 200 && res.data) {
+            // 保存/更新 conversationId（以服务器返回为准）
+            if (res.data.conversationId && res.data.conversationId !== this.id) {
+              this.id = res.data.conversationId;
+              uni.setStorageSync('conversationId', this.id);
+              console.log('更新 conversationId：', this.id);
+              this.isNewChat = false;
+            }
+  
+            const aiMsgs = res.data.messages
+              .filter(m => !m.isFromUser)
+              .map(m => ({
+                role: 'assistant',
+                type: m.messageType || 'text',
+                content: m.content,
+                id: Date.now() + Math.random()
+              }));
+  
+            this.messages.push(...aiMsgs);
+            this.scrollToBottom();
+          } else {
+            uni.showToast({ title: res.data?.message || '发送失败', icon: 'none' });
+          }
+        } catch (e) {
+          console.error('发送失败：', e);
+          uni.showToast({ title: e.errMsg || '网络错误', icon: 'none' });
+        } finally {
+          this.sending = false;
+        }
+      },
 
-     async send() {
-       const text = this.inputText.trim();
-       if (!text) return;
- 
-       // 显示用户消息
-       const userMsg = { role: 'user', type: 'text', content: text, id: Date.now() };
-       this.messages.push(userMsg);
-       this.inputText = '';
-       this.scrollToBottom();
- 
-       this.sending = true;
- 
-       try {
-         console.log('发送请求：', {
-           conversationId: this.id || '00000000-0000-0000-0000-000000000000',
-           message: text
-         });
- 
-         const res = await uni.request({
-           url: `${testbase}/api/chat/send`,
-           method: 'POST',
-           header: {
-             'Content-Type': 'application/json',
-             'Authorization': `Bearer ${uni.getStorageSync('token')}`
-           },
-           data: {
-             ConversationId: this.id || '00000000-0000-0000-0000-000000000000',  // 改成 this.id 变量
-             Message: text
-           }
-         });
- 
-         console.log('发送响应：', res);
- 
-         if (res.statusCode === 200 && res.data) {
-           // 关键：保存 conversationId（新建返回新 id，续聊返回原 id）
-           if (res.data.conversationId) {
-             this.id = res.data.conversationId;
-             uni.setStorageSync('conversationId', this.id);  // 持久化到 storage
-             console.log('保存 conversationId：', this.id);
-           }
- 
-           // 追加 AI 回复
-           const aiMsgs = res.data.messages
-             .filter(m => !m.isFromUser)
-             .map(m => ({
-               role: 'assistant',
-               type: m.messageType || 'text',
-               content: m.content,
-               id: Date.now() + Math.random()
-             }));
- 
-           this.messages.push(...aiMsgs);
-           this.scrollToBottom();
-         } else {
-           uni.showToast({ title: res.data?.message || '发送失败', icon: 'none' });
-         }
-       } catch (e) {
-         console.error('发送失败：', e);
-         uni.showToast({ title: e.errMsg || '网络错误', icon: 'none' });
-       } finally {
-         this.sending = false;
-       }
-     },
  
      scrollToBottom() {
        this.$nextTick(() => {
