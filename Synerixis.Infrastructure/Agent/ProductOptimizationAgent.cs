@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using Synerixis.Application.DTOs;
 using Synerixis.Application.Interfaces;
+using Synerixis.Application.Plugins;
 using Synerixis.Domain.Entities;
 using Synerixis.Domain.Enums;
 using Synerixis.Infrastructure.AI;
@@ -27,22 +28,29 @@ namespace Synerixis.Infrastructure.Agent
 
         private readonly SemanticKernelConfig _config;
         private readonly IChatCompletionService _chatService;
-        
+        private readonly Kernel _kernel;  // 新增
+
 
         public ProductOptimizationAgent(
             SemanticKernelConfig config,
-            IChatCompletionService chatService)
+            IChatCompletionService chatService,
+            Kernel kernel)
         {
             _config = config;
             _chatService = chatService;
+            _kernel = kernel;
         }
 
         public async Task<AgentResponse> ExecuteAsync(AgentContext context, CancellationToken ct = default)
         {
             try
             {
-                var kernel = _skConfig.Kernel;
-                var chatService = kernel.GetRequiredService<IChatCompletionService>();
+                // 新增：插件隔离 - Clone 全局 Kernel
+                var agentKernel = _kernel.Clone();  // 配置共享，Plugins 独立
+
+                agentKernel.ImportPluginFromType<ProductOptimizationPlugin>();
+
+                var chatService = agentKernel.GetRequiredService<IChatCompletionService>();
 
                 var chatHistory = new ChatHistory();
 
@@ -127,17 +135,19 @@ namespace Synerixis.Infrastructure.Agent
 
                 chatHistory.AddUserMessage(context.UserMessage);
 
+                // 新增：启用 Tool Call（插件调用）
                 var settings = new OpenAIPromptExecutionSettings
                 {
                     Temperature = 0.7,
                     MaxTokens = 3000,
-                    ResponseFormat = "json_object"
+                    ResponseFormat = "json_object",
+                    ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions  // 关键！让模型调用插件
                 };
 
                 var result = await chatService.GetChatMessageContentAsync(
                     chatHistory,
                     settings,
-                    kernel: kernel,
+                    kernel: agentKernel,
                     cancellationToken: ct
                 );
 
