@@ -58,7 +58,15 @@ namespace Synerixis.Api.Controllers
             }
 
             // 3. 提取 4 个核心参数
-            Guid? conversationId = command.ConversationId;           // 可为 null，表示新建
+            Guid conversationId;
+            if (!command.ConversationId.HasValue || command.ConversationId.Value == Guid.Empty)
+            {
+                conversationId = Guid.NewGuid();
+            }
+            else
+            {
+                conversationId = command.ConversationId.Value;
+            }
             string message = command.Message.Trim();
             var extraData = command.ExtraData;                       // 可为 null
 

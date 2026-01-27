@@ -10,14 +10,12 @@ namespace Synerixis.Application.Interfaces
 {
     public interface IAgent
     {
-        string Name { get; }
-        string Description { get; }
-
         ChatIntent SupportedIntent { get; }
         Task<AgentProcessResult> ProcessAsync(string userInput, ChatContext context);
-        public record AgentProcessResult(IReadOnlyList<ChatMessageDto> Messages, bool Success = true,string? ErrorMessage = null);        // 未来可加：bool NeedHumanIntervention, string SuggestedAction 等
-
-        Task<AgentResponse> ExecuteAsync(AgentContext context, CancellationToken ct = default);
     }
 
+    public record AgentProcessResult(
+    IReadOnlyList<ChatMessageDto> Messages,
+    bool Success = true,
+    string? ErrorMessage = null);
 }

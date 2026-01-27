@@ -16,9 +16,38 @@ using Synerixis.Infrastructure.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// 添加控制器支持
+// 1 添加控制器支持
 builder.Services.AddControllers();
+
+
+// 2 Semantic Kernel 配置
+builder.Services.AddSingleton<SemanticKernelConfig>();
+
+builder.Services.AddSingleton<Kernel>(sp => sp.GetRequiredService<SemanticKernelConfig>().Kernel);
+
+builder.Services.AddScoped<IChatCompletionService>(sp =>
+    sp.GetRequiredService<Kernel>().GetRequiredService<IChatCompletionService>());
+
+// 4. 业务服务（顺序：先基础，后依赖）
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGeneralChatAgent, GeneralChatAgent>();
+builder.Services.AddScoped<IIntentClassifier, IntentClassifier>();
+// 5. Agent 先注册（所有具体 Agent）
+builder.Services.AddScoped<IAgent, ProductOptimizationAgent>();
+// 如果有其他 Agent，在这里继续加
+
+
+// 专用仓储（如果有）
+builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
+
+
+// 意图分类器（用 LLM 版本）
+builder.Services.AddScoped<IIntentClassifier, IntentClassifier>();
+
+
+// 6. AgentRouter（注册为接口！必须在所有 Agent 后）
+builder.Services.AddScoped<IAgentRouter, AgentRouter>();
+
 
 // 添加 OpenAPI/Swagger（可选，开发时方便）
 builder.Services.AddEndpointsApiExplorer();
@@ -55,33 +84,8 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseMySql(conn, ServerVersion.AutoDetect(conn), mysql => mysql.EnableRetryOnFailure());
 });
 
-
-// Semantic Kernel 配置
-builder.Services.AddSingleton<SemanticKernelConfig>();
-
 // 泛型仓储（推荐只注册一次）
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-
-// 专用仓储（如果有）
-builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
-
-// 业务服务
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IAiChatService, AiChatService>();
-builder.Services.AddScoped<IGeneralChatAgent, GeneralChatAgent>();
-
-// 意图分类器（用 LLM 版本）
-builder.Services.AddScoped<IIntentClassifier, IntentClassifier>();
-
-// AgentRouter（必须在所有 Agent 注册后）
-builder.Services.AddScoped<AgentRouter>();
-
-// 具体 Agent（多实现，AgentRouter 会用它们）
-builder.Services.AddScoped<IAgent, ProductOptimizationAgent>();
-// IChatCompletionService（如果 Agent 或 Classifier 直接依赖它）
-builder.Services.AddScoped<IChatCompletionService>(sp =>
-    sp.GetRequiredService<SemanticKernelConfig>().Kernel.GetRequiredService<IChatCompletionService>());
-
 
 // HttpClient 工厂（如果 Agent 里需要调用外部 API）
 builder.Services.AddHttpClient();
@@ -89,6 +93,9 @@ builder.Services.AddHttpClient();
 // Health Checks（可选）
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("Database");
+
+// 7. AiChatService（最后注册，依赖 Router）
+builder.Services.AddScoped<IAiChatService, AiChatService>();
 
 var app = builder.Build();
 

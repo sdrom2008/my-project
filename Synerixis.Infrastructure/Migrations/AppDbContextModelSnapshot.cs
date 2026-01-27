@@ -42,11 +42,12 @@ namespace Synerixis.Infrastructure.Migrations
                     b.Property<bool>("IsFromUser")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Type")
-                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -59,10 +60,6 @@ namespace Synerixis.Infrastructure.Migrations
                 {
                     b.Property<byte[]>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("binary(16)");
-
-                    b.Property<byte[]>("ConversationId")
-                        .IsRequired()
                         .HasColumnType("binary(16)");
 
                     b.Property<DateTime>("CreatedAt")

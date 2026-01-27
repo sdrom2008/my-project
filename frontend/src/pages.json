@@ -1,28 +1,15 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
-	{
-	  "path": "pages/chat/list",
-	  "style": {
-	    "navigationBarTitleText": "会话列表"
-	  }
-	},
-    {
-      "path": "pages/login/index",
-      "style": {
-        "navigationBarTitleText": "登录"
-      }
-    },
-    {
-      "path": "pages/chat/index",
-      "style": {
-        "navigationBarTitleText": "聊天"
-      }
-	}
-	],
-	"globalStyle": {
-		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app",
-		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
-	}
+  "pages": [
+    { "path": "pages/login/login", "style": { "navigationBarTitleText": "登录" } },
+    { "path": "pages/conversations/conversations", "style": { "navigationBarTitleText": "会话列表" } },
+    { "path": "pages/chat/chat", "style": { "navigationBarTitleText": "聊天" } },
+	{ "path": "pages/chat/list", "style": { "navigationBarTitleText": "会话列表" } },
+	{ "path": "pages/profile/profile", "style": { "navigationBarTitleText": "您的个人信息" } }
+  ],
+  "tabBar": {
+  "list": [
+    { "pagePath": "pages/conversations/conversations", "text": "会话" },
+    { "pagePath": "pages/profile/profile", "text": "我的" }
+  ]
+}
 }

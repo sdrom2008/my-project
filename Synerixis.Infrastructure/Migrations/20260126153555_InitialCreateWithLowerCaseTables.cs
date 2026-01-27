@@ -53,8 +53,7 @@ namespace Synerixis.Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     LastActiveAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    SellerId = table.Column<byte[]>(type: "binary(16)", nullable: false),
-                    ConversationId = table.Column<byte[]>(type: "binary(16)", nullable: false)
+                    SellerId = table.Column<byte[]>(type: "binary(16)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -102,7 +101,7 @@ namespace Synerixis.Infrastructure.Migrations
                     IsFromUser = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Content = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Type = table.Column<string>(type: "longtext", nullable: true)
+                    MessageType = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     DataJson = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),

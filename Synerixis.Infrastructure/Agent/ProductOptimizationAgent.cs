@@ -25,9 +25,16 @@ namespace Synerixis.Infrastructure.Agent
 
         private readonly SemanticKernelConfig _skConfig;
 
-        public ProductOptimizationAgent(SemanticKernelConfig skConfig)
+        private readonly SemanticKernelConfig _config;
+        private readonly IChatCompletionService _chatService;
+        
+
+        public ProductOptimizationAgent(
+            SemanticKernelConfig config,
+            IChatCompletionService chatService)
         {
-            _skConfig = skConfig;
+            _config = config;
+            _chatService = chatService;
         }
 
         public async Task<AgentResponse> ExecuteAsync(AgentContext context, CancellationToken ct = default)
@@ -229,19 +236,13 @@ namespace Synerixis.Infrastructure.Agent
 
         public async Task<AgentProcessResult> ProcessAsync(string userInput, ChatContext context)
         {
-            // TODO: 调用商品优化逻辑、LLM 等
-            // 临时 mock
-            var mockMsg = new ChatMessageDto
-            {
-                IsFromUser = false,
-                Content = "商品优化建议已生成～（mock）",
-                MessageType = "product_opt",
-                Data = new { TitleSuggestion = "新标题建议", Reason = "更吸引眼球" }
-            };
-
+            // 你的商品优化逻辑...
+            var reply = "商品优化结果 mock";
             return new AgentProcessResult(
-                Messages: new List<ChatMessageDto> { mockMsg },
-                Success: true
+                Messages: new List<ChatMessageDto>
+                {
+                new ChatMessageDto { IsFromUser = false, Content = reply, MessageType = "product_opt" }
+                }
             );
         }
     }
