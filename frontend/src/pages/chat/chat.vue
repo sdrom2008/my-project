@@ -28,7 +28,7 @@
 export default {
   data() {
     return {
-      id: '',
+      id: '',  // conversationId
       messages: [],
       inputText: '',
       sending: false,
@@ -53,23 +53,21 @@ export default {
 },
 
   onLoad(options) {
-	  
-		  console.log('聊天页 onLoad 参数：', options);
+    console.log('聊天页 onLoad 参数：', options);
 
-		  // 兼容两种参数名
-		  this.id = options.conversationId || options.id || '';
+    // 优先 conversationId
+    this.id = options.conversationId || options.id || '';
 
-		  console.log('当前 conversationId：', this.id);
+    console.log('当前 conversationId：', this.id);
 
-		  if (this.id) {
-			console.log('开始加载历史，会话ID：', this.id);
-			this.loadHistory();
-		  } else {
-			console.log('新建会话，无 ID');
-		  }
+    if (this.id) {
+      console.log('开始加载历史，会话ID：', this.id);
+      this.loadHistory();
+    } else {
+      console.log('新建会话，无 ID');
+    }
 
-		  this.scrollToBottom();
-  
+    this.scrollToBottom();
   },
 
   methods: {
@@ -95,78 +93,77 @@ export default {
       }
     },
 
- async send() {
-   const text = this.inputText.trim();
-   if (!text) return;
+     async send() {
+       const text = this.inputText.trim();
+       if (!text) return;
  
-   // 先显示用户消息
-   const userMsg = { role: 'user', type: 'text', content: text, id: Date.now() };
-   this.messages.push(userMsg);
-   this.inputText = '';
-   this.scrollToBottom();
- 
-   try {
-     console.log('发送请求：', {
-       conversationId: this.id || null,
-       message: text
-     });
-	 console.log('发送的数据：', JSON.stringify({
-	   ConversationId: this.conversationId,
-	   Message: this.inputMessage
-	 }, null, 2));
-	 console.log('使用的 token：', uni.getStorageSync('token'));
- 
-     const res = await uni.request({
-       url: testbase+`/api/chat/send`,
-       method: 'POST',
-       header: {
-         'Content-Type': 'application/json',
-         'Authorization': `Bearer ${uni.getStorageSync('token')}`
-       },
-       data: {
-         //ConversationId: this.id || null,  // null 表示新建
-		 ConversationId:  '00000000-0000-0000-0000-000000000000',
-         Message: text
-       }
-     });
- 
-     console.log('发送响应：', res);
- 
-     if (res.statusCode === 200 && res.data) {
-       // 更新 conversationId（如果是新建，后端会返回）
-       if (!this.id && res.data.conversationId) {
-         this.id = res.data.conversationId;
-         console.log('新建会话成功，新 ID：', this.id);
-       }
- 
-       // 追加 AI 回复
-       const aiMsgs = res.data.messages
-         .filter(m => !m.isFromUser)
-         .map(m => ({
-           role: 'assistant',
-           type: m.messageType || 'text',
-           content: m.content,
-           id: Date.now() + Math.random()
-         }));
- 
-       this.messages.push(...aiMsgs);
+       // 显示用户消息
+       const userMsg = { role: 'user', type: 'text', content: text, id: Date.now() };
+       this.messages.push(userMsg);
+       this.inputText = '';
        this.scrollToBottom();
-     } else {
-       uni.showToast({ title: res.data?.message || '发送失败', icon: 'none' });
+ 
+       this.sending = true;
+ 
+       try {
+         console.log('发送请求：', {
+           conversationId: this.id || '00000000-0000-0000-0000-000000000000',
+           message: text
+         });
+ 
+         const res = await uni.request({
+           url: `${testbase}/api/chat/send`,
+           method: 'POST',
+           header: {
+             'Content-Type': 'application/json',
+             'Authorization': `Bearer ${uni.getStorageSync('token')}`
+           },
+           data: {
+             ConversationId: this.id || '00000000-0000-0000-0000-000000000000',  // 改成 this.id 变量
+             Message: text
+           }
+         });
+ 
+         console.log('发送响应：', res);
+ 
+         if (res.statusCode === 200 && res.data) {
+           // 关键：保存 conversationId（新建返回新 id，续聊返回原 id）
+           if (res.data.conversationId) {
+             this.id = res.data.conversationId;
+             uni.setStorageSync('conversationId', this.id);  // 持久化到 storage
+             console.log('保存 conversationId：', this.id);
+           }
+ 
+           // 追加 AI 回复
+           const aiMsgs = res.data.messages
+             .filter(m => !m.isFromUser)
+             .map(m => ({
+               role: 'assistant',
+               type: m.messageType || 'text',
+               content: m.content,
+               id: Date.now() + Math.random()
+             }));
+ 
+           this.messages.push(...aiMsgs);
+           this.scrollToBottom();
+         } else {
+           uni.showToast({ title: res.data?.message || '发送失败', icon: 'none' });
+         }
+       } catch (e) {
+         console.error('发送失败：', e);
+         uni.showToast({ title: e.errMsg || '网络错误', icon: 'none' });
+       } finally {
+         this.sending = false;
+       }
+     },
+ 
+     scrollToBottom() {
+       this.$nextTick(() => {
+         this.scrollId = 'msg-' + (this.messages.length - 1);
+       });
      }
-   } catch (e) {
-     console.error('发送失败：', e);
-     uni.showToast({ title: e.errMsg || '网络错误', icon: 'none' });
    }
- },
-
-    scrollToBottom() {
-      this.$nextTick(() => {
-        this.scrollId = 'msg-' + (this.messages.length - 1);
-      });
-    }
-  }
-};
+ };
 </script>
 
 <style>

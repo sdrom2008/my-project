@@ -16,6 +16,11 @@ using Synerixis.Infrastructure.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.AddConsole();          // 输出到控制台
+builder.Logging.AddDebug();            // 输出到调试窗口（如 VS Output）
+builder.Logging.SetMinimumLevel(LogLevel.Debug);  // 必须设为 Debug 才能看到 LogDebug
+
 // 1 添加控制器支持
 builder.Services.AddControllers();
 

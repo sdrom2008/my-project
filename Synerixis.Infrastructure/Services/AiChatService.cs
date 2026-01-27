@@ -109,11 +109,7 @@ namespace Synerixis.Infrastructure.Services
             throw new NotImplementedException();
         }
 
-        public async Task<ChatMessageReplyDto> ProcessUserMessageAsync(
-            Guid sellerId,
-            Guid? conversationId,
-            string message,
-            Dictionary<string, string>? extraData = null)
+        public async Task<ChatMessageReplyDto> ProcessUserMessageAsync(Guid sellerId,Guid? conversationId,string message,Dictionary<string, string>? extraData = null)
         {
             // 1. 处理 conversationId：如果 null，创建新会话
             Guid actualConvId;

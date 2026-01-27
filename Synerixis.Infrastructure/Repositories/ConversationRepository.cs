@@ -28,16 +28,15 @@ namespace Synerixis.Infrastructure.Repositories
         {
             if (!Guid.TryParse(conversationId, out var convGuid))
                 throw new ArgumentException("无效的 conversationId");
+            if (!Guid.TryParse(sellerId, out var sellerGuid))
+                throw new ArgumentException("无效的 sellerId");
 
             var conv = await _dbSet
                 .Include(c => c.Messages)
-                .FirstOrDefaultAsync(c => c.Id == convGuid);
+                .FirstOrDefaultAsync(c => c.Id == convGuid && c.SellerId == sellerGuid);
 
             if (conv == null)
             {
-                if (!Guid.TryParse(sellerId, out var sellerGuid))
-                    throw new ArgumentException("无效的 sellerId");
-
                 var firstMsg = messages.FirstOrDefault();
                 if (firstMsg == null)
                     throw new InvalidOperationException("没有消息，无法创建会话");
@@ -48,7 +47,6 @@ namespace Synerixis.Infrastructure.Repositories
 
             foreach (var dto in messages)
             {
-                // 用静态工厂创建 ChatMessage（避免直接 new 和 private setter）
                 ChatMessage msg;
 
                 if (dto.IsFromUser)
@@ -57,7 +55,6 @@ namespace Synerixis.Infrastructure.Repositories
                 }
                 else
                 {
-                    // AI 消息，带 type 和 data
                     object? dataObj = dto.Data;
                     msg = ChatMessage.FromAI(
                         content: dto.Content,
@@ -65,19 +62,39 @@ namespace Synerixis.Infrastructure.Repositories
                         data: dataObj
                     );
                 }
-
-                // Timestamp 如果前端传了就用，否则用现在
-                if (dto.Timestamp != default)
-                {
-                    // 由于 Timestamp 是 private set，只能反射或改实体加 public setter（不推荐）
-                    // 推荐方案：让实体 Timestamp 支持从工厂传入（下面改实体）
-                    // 临时 workaround：不设置，让实体用默认值
-                }
-
-                conv.AddMessage(msg);
+                conv.Messages.Add(msg);
             }
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+                return;  // 成功，退出
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                var entry = ex.Entries.SingleOrDefault();
+                if (entry == null)
+                {
+                    throw new InvalidOperationException("并发异常无实体信息");
+                }
+
+                var databaseValues = entry.GetDatabaseValues();
+
+                if (databaseValues == null)
+                {
+                    // 记录已被删除
+                    throw new InvalidOperationException("会话已被删除，请新建会话");
+                }
+
+                // 重新加载客户端值（覆盖数据库变化，或合并）
+                entry.OriginalValues.SetValues(databaseValues);
+                entry.CurrentValues.SetValues(databaseValues);  // 简单覆盖：以当前实体为准
+
+                // 如果需要合并自定义逻辑：读取 databaseValues，合并 Messages 等
+                // 示例：var dbConv = (Conversation)databaseValues.ToObject();
+                // 然后合并 Messages...
+            }
+
         }
 
         public async Task<ChatContext> GetContextAsync(string conversationId, string sellerId)

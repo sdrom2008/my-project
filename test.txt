@@ -1,0 +1,7 @@
+D:\source\my-project\Synerixis.Application\Interfaces\IConversationRepository.cs
+D:\source\my-project\Synerixis.Application\Interfaces\IGeneralChatAgent.cs
+D:\source\my-project\Synerixis.Application\Interfaces\IIntentClassifier.cs
+D:\source\my-project\Synerixis.Application\Interfaces\IRepository.cs
+D:\source\my-project\Synerixis.Application\Plugins\CustomerServicePlugin.cs
+D:\source\my-project\Synerixis.Application\Plugins\ProductOptimizationPlugin.cs
+D:\source\my-project\Synerixis.Application\Services\IntentClassifier.cs
