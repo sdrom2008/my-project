@@ -15,10 +15,18 @@ namespace Synerixis.Domain.Entities
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
         public DateTime? LastActiveAt { get; private set; }
 
+        public DateTime? LastViewedAt { get; private set; }  // 最后查看时间
+
         // 外键：关联 Seller（商家）
         public Guid SellerId { get; private set; }
         // 导航属性（可选，但推荐加，便于查询）
         public Seller? Seller { get; private set; }
+
+        /// <summary>
+        /// 删除标记
+        /// </summary>
+        public bool IsDeleted { get; private set; } = false;
+
 
         // 会话唯一标识（如果你需要一个字符串形式的 ID，比如前端用）
         //public Guid ConversationId { get; private set; }  // 新增这个
@@ -42,6 +50,25 @@ namespace Synerixis.Domain.Entities
         public void AddMessage(ChatMessage message)
         {
             Messages.Add(message);
+            LastActiveAt = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public void MarkAsViewed()
+        {
+            LastViewedAt = DateTime.UtcNow;
+            LastActiveAt = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// 删除会话
+        /// </summary>
+        public void MarkAsDeleted()
+        {
+            IsDeleted = true;
+            // 可选：更新 LastActiveAt 或其他状态
             LastActiveAt = DateTime.UtcNow;
         }
     }

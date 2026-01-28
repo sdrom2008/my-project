@@ -43,8 +43,10 @@ namespace Synerixis.Infrastructure.Repositories
             {
                 conv = Conversation.Create(sellerGuid);
                 _dbSet.Add(conv);
-                //await _context.SaveChangesAsync();  // 立即保存 Conversation，确保 Id 真实
+                await _context.SaveChangesAsync();  // 立即保存 Conversation，确保 Id 真实
             }
+
+            var chatMessageDbSet = _context.Set<ChatMessage>();
 
             // 通过聚合根添加消息（EF 自动设置 ConversationId）
             foreach (var dto in messages)
@@ -60,7 +62,10 @@ namespace Synerixis.Infrastructure.Repositories
                     object? dataObj = dto.Data;
                     msg = ChatMessage.FromAI(content: dto.Content,messageType: dto.MessageType,data: dataObj ,conv.Id);
                 }
-                conv.AddMessage(msg);  // 关键！聚合根维护关系，EF 自动设外键
+
+                conv.AddMessage(msg);  // 聚合根维护关系，EF 自动设 ConversationId
+
+                chatMessageDbSet.Add(msg);  // 直接 Add 到 DbSet
             }
 
             try
@@ -125,5 +130,6 @@ namespace Synerixis.Infrastructure.Repositories
                 Messages = messages
             };
         }
+
     }
 }

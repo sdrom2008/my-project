@@ -22,14 +22,16 @@ namespace Synerixis.Infrastructure.Services
         private readonly IAgentRouter _agentRouter;
         private readonly IConversationRepository _conversationRepository;   // 保存历史
         private readonly ILogger<AiChatService> _logger;
+        private readonly IRepository<Seller> _sellerRepository;
 
-        public AiChatService(IIntentClassifier intentClassifier,IAgentRouter agentRouter,IGeneralChatAgent generalChatAgent,IConversationRepository conversationRepository,ILogger<AiChatService> logger)
+        public AiChatService(IIntentClassifier intentClassifier,IAgentRouter agentRouter,IGeneralChatAgent generalChatAgent,IConversationRepository conversationRepository,ILogger<AiChatService> logger , IRepository<Seller> sellerRepository)
         {
             _intentClassifier = intentClassifier;
             _agentRouter = agentRouter;
             _generalChatAgent = generalChatAgent;
             _conversationRepository = conversationRepository;
             _logger = logger;
+            _sellerRepository = sellerRepository;
         }
 
         public async Task<SynerixisResponse> HandleMessageAsync(string conversationId, string userInput, string sellerId)
@@ -108,6 +110,21 @@ namespace Synerixis.Infrastructure.Services
 
         public async Task<ChatMessageReplyDto> ProcessUserMessageAsync(Guid sellerId,Guid? conversationId,string message,Dictionary<string, string>? extraData = null)
         {
+            // 先查 seller（用仓储）
+            var seller = await _sellerRepository.FirstOrDefaultAsync(s => s.Id == sellerId);
+
+            if (seller == null) throw new UnauthorizedAccessException("商户不存在");
+
+            // 校验额度或订阅
+            if (seller.FreeQuota <= 0 && (seller.SubscriptionEnd == null || seller.SubscriptionEnd < DateTime.UtcNow))
+            {
+                throw new InvalidOperationException("免费额度已用完，请续费");
+            }
+
+            // 消耗额度
+            seller.ConsumeQuota();  // 调用实体方法（你之前加的）
+            await _sellerRepository.SaveChangesAsync();  // 用仓储保存
+
             _logger.LogInformation("ProcessUserMessageAsync - SellerId: {SellerId}, ConvId: {ConvId}, Msg: {Msg}", sellerId, conversationId, message);
 
             // 1. 处理 conversationId：如果 null，创建新会话

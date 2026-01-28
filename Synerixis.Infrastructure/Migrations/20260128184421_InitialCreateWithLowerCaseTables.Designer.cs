@@ -12,7 +12,7 @@ using Synerixis.Infrastructure.Data;
 namespace Synerixis.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260127213430_InitialCreateWithLowerCaseTables")]
+    [Migration("20260128184421_InitialCreateWithLowerCaseTables")]
     partial class InitialCreateWithLowerCaseTables
     {
         /// <inheritdoc />
@@ -56,7 +56,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.HasIndex("ConversationId");
 
-                    b.ToTable("chatmessage", (string)null);
+                    b.ToTable("ChatMessages");
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.Conversation", b =>
@@ -68,7 +68,13 @@ namespace Synerixis.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<DateTime?>("LastActiveAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("LastViewedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<byte[]>("SellerId")
@@ -101,11 +107,17 @@ namespace Synerixis.Infrastructure.Migrations
                     b.Property<string>("Email")
                         .HasColumnType("longtext");
 
+                    b.Property<int?>("FreeQuota")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LastLoginType")
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Nickname")
                         .HasColumnType("longtext");
@@ -117,6 +129,15 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.Property<string>("PasswordHash")
                         .HasColumnType("longtext");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("RegisterSource")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("SubscriptionEnd")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("SubscriptionLevel")
                         .IsRequired()

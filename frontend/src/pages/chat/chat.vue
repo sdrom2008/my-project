@@ -53,30 +53,32 @@ export default {
 		  });
 },
 
-  onLoad(options) {
-    console.log('onLoad 参数：', options);
+onLoad(options) {
+  console.log('chat onLoad 参数：', options);
 
-    // 1. 先从 storage 恢复（最高优先）
-    this.id = uni.getStorageSync('conversationId') || '';
+  // 优先使用 URL 参数（从列表页传来的 conversationId）
+  this.id = options.conversationId || '';
 
-    // 2. 如果 URL 参数有 conversationId，用它覆盖（从列表跳转）
-    if (options.conversationId || options.id) {
-      this.id = options.conversationId || options.id;
-      uni.setStorageSync('conversationId', this.id);  // 同步 storage
-      this.isNewChat = false;
-    }
+  // 清空旧数据，确保不带入历史会话
+  this.messages = [];
+  this.inputText = '';
 
-    console.log('初始化 conversationId：', this.id);
+  // 如果有 id，加载历史；否则就是新会话
+  if (this.id) {
+    console.log('加载历史会话 ID：', this.id);
+    this.loadHistory();
+    // 同时更新 storage（保持一致）
+    uni.setStorageSync('conversationId', this.id);
+  } else {
+    console.log('新会话，无 ID');
+    // 新会话时清空 storage，避免干扰下次
+    uni.removeStorageSync('conversationId');
+  }
 
-    if (this.id && !this.isNewChat) {
-      console.log('加载历史，会话ID：', this.id);
-      this.loadHistory();
-    } else {
-      console.log('新会话，无需加载历史');
-    }
-
-    this.scrollToBottom();
-  },
+  this.scrollToBottom();
+},
+  
+  
   onShow() {
     // 页面显示时再同步一次 storage（防切换 tab 丢失）
     const storedId = uni.getStorageSync('conversationId');
@@ -129,7 +131,7 @@ export default {
   
         try {
           const sendId = this.id || '00000000-0000-0000-0000-000000000000';
-          console.log('发送 - ConversationId:', sendId);
+
   
           const res = await uni.request({
             url: `${testbase}/api/chat/send`,

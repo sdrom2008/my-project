@@ -143,5 +143,22 @@ namespace Synerixis.Infrastructure.Repositories
 
             return (items, total);
         }
+
+        /// <summary>
+        /// 分页查询返回 IQueryable 以便进一步处理
+        /// </summary>
+        /// <param name="predicate"></param>
+        /// <returns></returns>
+        public IQueryable<T> GetQueryable(Expression<Func<T, bool>> predicate = null)
+        {
+            var query = _dbSet.AsQueryable();
+
+            if (predicate != null)
+            {
+                query = query.Where(predicate);
+            }
+
+            return query;
+        }
     }
 }

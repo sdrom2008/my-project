@@ -24,5 +24,7 @@ namespace Synerixis.Application.Interfaces
 
         Task<(List<T> Items, int TotalCount)> GetPagedAsync(int pageIndex, int pageSize, Expression<Func<T, bool>>? predicate = null, Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null, Func<IQueryable<T>, IQueryable<T>>? include = null);
         Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null);
+
+        IQueryable<T> GetQueryable(Expression<Func<T, bool>> predicate = null);
     }
 }

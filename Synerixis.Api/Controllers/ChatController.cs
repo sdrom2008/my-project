@@ -1,15 +1,16 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.SemanticKernel;
+using Synerixis.Api.Extensions;
+using Synerixis.Application.DTOs;
+using Synerixis.Application.Interfaces;
+using Synerixis.Domain.Entities;
 using Synerixis.Infrastructure.Repositories;
 using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
-using Synerixis.Api.Extensions;
-using Synerixis.Application.DTOs;
-using Synerixis.Application.Interfaces;
-using Synerixis.Domain.Entities;
 
 namespace Synerixis.Api.Controllers
 {
@@ -87,22 +88,52 @@ namespace Synerixis.Api.Controllers
         /// <summary>
         /// 获取当前商家的所有会话列表
         /// </summary>
-        [HttpGet("conversations")]
-        public async Task<IActionResult> GetConversations()
-        {
-            Guid sellerId;
-            try
-            {
-                sellerId = User.GetSellerId();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized("无效的商家身份");
-            }
+        //[HttpGet("conversations")]
+        //public async Task<IActionResult> GetConversations()
+        //{
+        //    Guid sellerId;
+        //    try
+        //    {
+        //        sellerId = User.GetSellerId();
+        //    }
+        //    catch (UnauthorizedAccessException)
+        //    {
+        //        return Unauthorized("无效的商家身份");
+        //    }
 
-            var conversations = await _conversationRepository.GetAllAsync(
-                c => c.SellerId == sellerId,
-                orderBy: q => q.OrderByDescending(c => c.LastActiveAt));
+        //    var conversations = await _conversationRepository.GetAllAsync(
+        //        c => c.SellerId == sellerId && !c.IsDeleted,
+        //        orderBy: q => q.OrderByDescending(c => c.LastActiveAt));
+
+        //    var result = conversations.Select(c => new
+        //    {
+        //        id = c.Id,
+        //        title = c.Title,
+        //        lastMessage = c.Messages.OrderByDescending(m => m.Timestamp).FirstOrDefault()?.Content ?? "暂无消息",
+        //        lastActiveAt = c.LastActiveAt?.ToString("yyyy-MM-dd HH:mm")
+        //    });
+
+        //    return Ok(result);
+        //}
+
+        [HttpGet("conversations")]
+        public async Task<IActionResult> GetConversations([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 20;
+
+            Guid sellerId = User.GetSellerId();
+
+            var query = _conversationRepository.GetQueryable(
+                c => c.SellerId == sellerId && (c.IsDeleted == null || c.IsDeleted == false))
+                .OrderByDescending(c => c.LastActiveAt);
+
+            var total = await query.CountAsync();
+
+            var conversations = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
             var result = conversations.Select(c => new
             {
@@ -112,7 +143,14 @@ namespace Synerixis.Api.Controllers
                 lastActiveAt = c.LastActiveAt?.ToString("yyyy-MM-dd HH:mm")
             });
 
-            return Ok(result);
+            return Ok(new
+            {
+                items = result,
+                total,
+                page,
+                pageSize,
+                hasMore = result.Count() == pageSize
+            });
         }
 
         /// <summary>
@@ -159,6 +197,63 @@ namespace Synerixis.Api.Controllers
                 title = conversation.Title,
                 messages
             });
+        }
+
+        /// <summary>
+        /// 接口更新查看时间
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpPatch("conversation/{id}/view")]
+        public async Task<IActionResult> MarkConversationViewed(Guid id)
+        {
+            Guid sellerId;
+            try
+            {
+                sellerId = User.GetSellerId();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized("无效的商家身份");
+            }
+
+            var conversation = await _conversationRepository.FirstOrDefaultAsync(
+                c => c.Id == id && c.SellerId == sellerId);
+
+            if (conversation == null)
+            {
+                return NotFound("会话不存在");
+            }
+
+            conversation.MarkAsViewed();
+            await _conversationRepository.SaveChangesAsync();  // ← 这里调用仓储的 SaveChanges
+
+            return Ok();
+        }
+
+        /// <summary>
+        /// 删除会话
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpDelete("conversation/{id}")]
+        public async Task<IActionResult> DeleteConversation(Guid id)
+        {
+            Guid sellerId = User.GetSellerId();
+
+            var conversation = await _conversationRepository.FirstOrDefaultAsync(
+                c => c.Id == id && c.SellerId == sellerId && !c.IsDeleted);
+
+            if (conversation == null)
+            {
+                return NotFound("会话不存在");
+            }
+
+            // 标记隐藏（加一个 IsDeleted 字段）
+            conversation.MarkAsDeleted();
+            await _conversationRepository.SaveChangesAsync();
+
+            return Ok();
         }
     }
 }

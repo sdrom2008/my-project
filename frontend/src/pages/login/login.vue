@@ -1,39 +1,140 @@
-<!-- pages/login/login.vue -->
 <template>
   <view class="login-container">
     <image src="/static/logo.png" mode="widthFix" class="logo" />
     <view class="title">Synerixis - AI 智能伙伴</view>
     <view class="desc">一键接入，AI 帮你 24h 客服 & 增长</view>
 
-    <button class="login-btn" open-type="getUserInfo" @getuserinfo="handleLogin">
+    <!-- 微信一键登录（保留原有） -->
+    <button class="wechat-btn" open-type="getUserInfo" @getuserinfo="handleWechatLogin">
       <text>微信一键登录</text>
     </button>
+
+    <view class="divider">或</view>
+
+    <!-- 手机号登录 / 注册 -->
+    <view class="phone-section">
+      <input 
+        v-model="phone" 
+        placeholder="请输入手机号" 
+        type="number" 
+        maxlength="11" 
+        class="input" 
+      />
+      <view class="code-row">
+        <input 
+          v-model="code" 
+          placeholder="验证码" 
+          type="number" 
+          maxlength="6" 
+          class="input" 
+        />
+        <button 
+          class="code-btn" 
+          :disabled="countdown > 0" 
+          @tap="sendCode"
+        >
+          {{ countdown > 0 ? countdown + '秒' : '获取验证码' }}
+        </button>
+      </view>
+      <button class="login-btn" @tap="handlePhoneLogin">登录 / 注册</button>
+    </view>
 
     <view class="tip">登录即同意《用户协议》和《隐私政策》</view>
   </view>
 </template>
 
 <script>
+const testbase = 'http://192.168.1.254:7092';
+
 export default {
+  data() {
+    return {
+      phone: '',
+      code: '',
+      countdown: 0
+    };
+  },
+
   methods: {
-    async handleLogin(e) {
+    // 微信一键登录（保留原有逻辑）
+    async handleWechatLogin(e) {
       if (!e.detail.userInfo) {
         uni.showToast({ title: '授权失败，请重试', icon: 'none' });
         return;
       }
 
       try {
-        // 1. 获取 code
         const { code } = await uni.login({ provider: 'weixin' });
 
-        // 2. 调用后端微信登录接口
         const res = await uni.request({
-          url: `${this.$BASE_URL}/api/auth/wechat`,
+          url: `${testbase}/api/auth/wechat`,
           method: 'POST',
           data: { code }
         });
 
         if (res.data && res.data.token) {
+          uni.setStorageSync('token', res.data.token);
+          uni.setStorageSync('sellerId', res.data.sellerId);
+
+          uni.showToast({ title: '登录成功', icon: 'success' });
+          uni.switchTab({ url: '/pages/conversations/conversations' });
+        } else if (res.data.needBind) {
+          // 未绑定，跳转绑定手机号页面
+          uni.navigateTo({
+            url: `/pages/login/bind-phone?openid=${res.data.openid}`
+          });
+        } else {
+          uni.showToast({ title: res.data?.message || '登录失败', icon: 'none' });
+        }
+      } catch (err) {
+        uni.showToast({ title: '网络错误', icon: 'none' });
+      }
+    },
+
+    // 发送验证码
+    async sendCode() {
+      if (!this.phone || this.phone.length !== 11) {
+        uni.showToast({ title: '手机号格式错误', icon: 'none' });
+        return;
+      }
+
+      try {
+        const res = await uni.request({
+          url: `${testbase}/api/auth/send-code`,
+          method: 'POST',
+          data: { phone: this.phone }
+        });
+
+        if (res.statusCode === 200) {
+          uni.showToast({ title: '验证码已发送', icon: 'success' });
+          this.countdown = 60;
+          const timer = setInterval(() => {
+            this.countdown--;
+            if (this.countdown <= 0) clearInterval(timer);
+          }, 1000);
+        } else {
+          uni.showToast({ title: res.data?.message || '发送失败', icon: 'none' });
+        }
+      } catch (err) {
+        uni.showToast({ title: '网络错误', icon: 'none' });
+      }
+    },
+
+    // 手机号登录 / 注册
+    async handlePhoneLogin() {
+      if (!this.phone || !this.code) {
+        uni.showToast({ title: '请输入完整信息', icon: 'none' });
+        return;
+      }
+
+      try {
+        const res = await uni.request({
+          url: `${testbase}/api/auth/phone-login`,
+          method: 'POST',
+          data: { phone: this.phone, code: this.code }
+        });
+
+        if (res.statusCode === 200 && res.data.token) {
           uni.setStorageSync('token', res.data.token);
           uni.setStorageSync('sellerId', res.data.sellerId);
 
@@ -51,10 +152,16 @@ export default {
 </script>
 
 <style>
-.login-container { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(to bottom, #f0f4ff, #fff); }
+.login-container { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(to bottom, #f0f4ff, #fff); padding: 0 60rpx; }
 .logo { width: 300rpx; margin-bottom: 40rpx; }
 .title { font-size: 52rpx; font-weight: bold; margin-bottom: 20rpx; }
 .desc { font-size: 32rpx; color: #666; margin-bottom: 80rpx; text-align: center; }
-.login-btn { width: 600rpx; height: 100rpx; line-height: 100rpx; background: #07c160; color: white; border-radius: 50rpx; font-size: 36rpx; margin-top: 80rpx; }
-.tip { font-size: 28rpx; color: #999; margin-top: 40rpx; }
+.wechat-btn { width: 100%; height: 100rpx; line-height: 100rpx; background: #07c160; color: white; border-radius: 50rpx; font-size: 36rpx; margin: 40rpx 0; }
+.divider { color: #999; margin: 40rpx 0; font-size: 28rpx; }
+.phone-section { width: 100%; }
+.input { width: 100%; height: 100rpx; padding: 0 30rpx; background: white; border-radius: 50rpx; margin: 20rpx 0; border: 1rpx solid #eee; box-sizing: border-box; font-size: 32rpx; }
+.code-row { display: flex; align-items: center; margin: 20rpx 0; }
+.code-btn { width: 280rpx; height: 100rpx; line-height: 100rpx; background: #007aff; color: white; border-radius: 50rpx; font-size: 32rpx; margin-left: 20rpx; }
+.login-btn { width: 100%; height: 100rpx; line-height: 100rpx; background: #007aff; color: white; border-radius: 50rpx; font-size: 36rpx; margin-top: 40rpx; }
+.tip { font-size: 28rpx; color: #999; margin-top: 40rpx; text-align: center; }
 </style>

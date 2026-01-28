@@ -21,6 +21,8 @@ namespace Synerixis.Infrastructure.Migrations
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
                     OpenId = table.Column<string>(type: "varchar(128)", maxLength: 128, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    Phone = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     Username = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Email = table.Column<string>(type: "longtext", nullable: true)
@@ -34,8 +36,14 @@ namespace Synerixis.Infrastructure.Migrations
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     SubscriptionLevel = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    FreeQuota = table.Column<int>(type: "int", nullable: true),
+                    SubscriptionEnd = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    RegisterSource = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     LastLoginAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    LastLoginType = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
                 constraints: table =>
@@ -53,7 +61,9 @@ namespace Synerixis.Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     LastActiveAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    SellerId = table.Column<byte[]>(type: "binary(16)", nullable: false)
+                    LastViewedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    SellerId = table.Column<byte[]>(type: "binary(16)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -93,7 +103,7 @@ namespace Synerixis.Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "chatmessage",
+                name: "ChatMessages",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
@@ -109,9 +119,9 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_chatmessage", x => x.Id);
+                    table.PrimaryKey("PK_ChatMessages", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_chatmessage_conversations_ConversationId",
+                        name: "FK_ChatMessages_conversations_ConversationId",
                         column: x => x.ConversationId,
                         principalTable: "conversations",
                         principalColumn: "Id",
@@ -120,8 +130,8 @@ namespace Synerixis.Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
-                name: "IX_chatmessage_ConversationId",
-                table: "chatmessage",
+                name: "IX_ChatMessages_ConversationId",
+                table: "ChatMessages",
                 column: "ConversationId");
 
             migrationBuilder.CreateIndex(
@@ -145,7 +155,7 @@ namespace Synerixis.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "chatmessage");
+                name: "ChatMessages");
 
             migrationBuilder.DropTable(
                 name: "SellerConfigs");

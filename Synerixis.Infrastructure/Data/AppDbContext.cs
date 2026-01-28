@@ -40,15 +40,11 @@ namespace Synerixis.Infrastructure.Data
                 entity.HasIndex(s => s.OpenId).IsUnique();
             });
 
-            modelBuilder.Entity<ChatMessage>(entity =>
-            {
-                entity.ToTable("chatmessage");
-                entity.HasKey(m => m.Id);
-
-                entity.HasOne(m => m.Conversation)
-                      .WithMany(c => c.Messages)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.Conversation)
+                .WithMany(c => c.Messages)
+                .HasForeignKey(m => m.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Conversation>(entity =>
             {
