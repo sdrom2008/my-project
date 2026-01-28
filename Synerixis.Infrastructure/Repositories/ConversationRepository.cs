@@ -25,7 +25,7 @@ namespace Synerixis.Infrastructure.Repositories
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
-        public async Task AppendMessagesAsync(string conversationId, string sellerId, IEnumerable<ChatMessageDto> messages)
+        public async Task<Guid> AppendMessagesAsync(string conversationId, string sellerId, IEnumerable<ChatMessageDto> messages)
         {
             if (!Guid.TryParse(conversationId, out var convGuid))
                 throw new ArgumentException("无效的 conversationId");
@@ -35,81 +35,55 @@ namespace Synerixis.Infrastructure.Repositories
             if (!messages.Any())
                 throw new ArgumentException("没有消息可保存");
 
+            // 加载 Conversation（不加载 Messages，避免跟踪旧消息）
             var conv = await _dbSet
-                .Include(c => c.Messages)
                 .FirstOrDefaultAsync(c => c.Id == convGuid && c.SellerId == sellerGuid);
-
-            await _context.SaveChangesAsync();
 
             if (conv == null)
             {
-                var firstMsg = messages.First();
-                //conv = Conversation.Create(sellerGuid);
+                conv = Conversation.Create(sellerGuid);
                 _dbSet.Add(conv);
-
-                //新建会话后 立即保存
-                await _context.SaveChangesAsync();
+                //await _context.SaveChangesAsync();  // 立即保存 Conversation，确保 Id 真实
             }
 
+            // 通过聚合根添加消息（EF 自动设置 ConversationId）
             foreach (var dto in messages)
             {
                 ChatMessage msg;
 
                 if (dto.IsFromUser)
                 {
-                    msg = ChatMessage.FromUser(dto.Content);
+                    msg = ChatMessage.FromUser(dto.Content, conv.Id);
                 }
                 else
                 {
                     object? dataObj = dto.Data;
-                    msg = ChatMessage.FromAI(
-                        content: dto.Content,
-                        messageType: dto.MessageType,
-                        data: dataObj
-                    );
+                    msg = ChatMessage.FromAI(content: dto.Content,messageType: dto.MessageType,data: dataObj ,conv.Id);
                 }
-
-                conv.Messages.Add(msg);
+                conv.AddMessage(msg);  // 关键！聚合根维护关系，EF 自动设外键
             }
 
             try
             {
                 await _context.SaveChangesAsync();
-                // 可加日志：_logger.LogInformation("保存消息成功 - 会话ID: {ConvId}, 消息数: {Count}", conv.Id, messages.Count());
+                Console.WriteLine("保存成功 - 会话ID: " + conv.Id + ", 新消息数: " + messages.Count());
             }
             catch (DbUpdateConcurrencyException ex)
             {
+                Console.WriteLine("DbUpdateConcurrencyException: " + ex.Message);
                 var entry = ex.Entries.SingleOrDefault();
-                if (entry == null)
-                {
-                    throw new InvalidOperationException("并发异常无实体信息");
-                }
+                if (entry == null) throw;
 
-                var databaseValues = entry.GetDatabaseValues();
+                var dbValues = entry.GetDatabaseValues();
+                if (dbValues == null) throw new InvalidOperationException("记录已被删除");
 
-                if (databaseValues == null)
-                {
-                    throw new InvalidOperationException("会话已被删除，请新建会话");
-                }
+                entry.OriginalValues.SetValues(dbValues);
+                entry.CurrentValues.SetValues(dbValues);
 
-                // 覆盖重试
-                entry.OriginalValues.SetValues(databaseValues);
-                entry.CurrentValues.SetValues(databaseValues);
-
-                try
-                {
-                    await _context.SaveChangesAsync();
-                    // _logger.LogWarning("并发冲突已自动解决 - 会话ID: {ConvId}", conv.Id);
-                }
-                catch (Exception retryEx)
-                {
-                    throw new InvalidOperationException($"保存失败，已重试并发冲突: {retryEx.Message}", retryEx);
-                }
+                await _context.SaveChangesAsync();
             }
-            catch (DbUpdateException ex)
-            {
-                throw new InvalidOperationException($"数据库更新失败: {ex.InnerException?.Message ?? ex.Message}", ex);
-            }
+
+            return conv.Id;
         }
 
         public async Task<ChatContext> GetContextAsync(string conversationId, string sellerId)

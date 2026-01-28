@@ -12,7 +12,7 @@ using Synerixis.Infrastructure.Data;
 namespace Synerixis.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260127184710_InitialCreateWithLowerCaseTables")]
+    [Migration("20260127213430_InitialCreateWithLowerCaseTables")]
     partial class InitialCreateWithLowerCaseTables
     {
         /// <inheritdoc />

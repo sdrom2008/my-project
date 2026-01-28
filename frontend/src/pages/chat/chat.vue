@@ -91,6 +91,7 @@ export default {
      async loadHistory() {
         if (!this.id) return;
   
+        uni.setStorageSync('conversationId',this.id);
         const token = uni.getStorageSync('token');
         try {
           console.log('加载历史 - ID:', this.id);

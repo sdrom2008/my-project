@@ -72,8 +72,8 @@ namespace Synerixis.Infrastructure.Services
 
                 messages.Add(aiMessage);
 
-                // 保存
-                await _conversationRepository.AppendMessagesAsync(conversationId ,sellerId, messages);
+                // 保存 顺带获取conid
+                conversationId = (await _conversationRepository.AppendMessagesAsync(conversationId ,sellerId, messages)).ToString();
 
                 return new SynerixisResponse
                 {
@@ -111,45 +111,28 @@ namespace Synerixis.Infrastructure.Services
             _logger.LogInformation("ProcessUserMessageAsync - SellerId: {SellerId}, ConvId: {ConvId}, Msg: {Msg}", sellerId, conversationId, message);
 
             // 1. 处理 conversationId：如果 null，创建新会话
-            Guid actualConvId;
+            Guid actualConvId = conversationId ?? Guid.Empty;  // 直接用前端传的值
 
-            if (!conversationId.HasValue || conversationId == Guid.Empty)
+            // 如果是新建，提前创建并保存 Conversation
+            if (actualConvId == Guid.Empty)
             {
-                // 新建
                 var newConv = Conversation.Create(sellerId, "新对话 - " + DateTime.UtcNow.ToString("MM-dd HH:mm"));
                 await _conversationRepository.AddAsync(newConv);
+                await _conversationRepository.SaveChangesAsync();  // 立即保存！确保 Id 写入 DB
                 actualConvId = newConv.Id;
-                _logger.LogInformation("创建新会话 ID: {ConvId}", actualConvId);
-            }
-            else
-            {
-                actualConvId = conversationId.Value;
-                var existingConv = await _conversationRepository.GetWithMessagesAsync(actualConvId);
-                if (existingConv == null || existingConv.SellerId != sellerId)
-                {
-                    _logger.LogWarning("会话不存在或无权限 - ConvId: {ConvId}", actualConvId);
-                    // 自动新建
-                    var newConv = Conversation.Create(sellerId, "新对话 - " + DateTime.UtcNow.ToString("MM-dd HH:mm"));
-                    await _conversationRepository.AddAsync(newConv);
-                    actualConvId = newConv.Id;
-                    _logger.LogInformation("原会话无效，已新建 ID: {ConvId}", actualConvId);
-                }
-                else
-                {
-                    _logger.LogInformation("使用已有会话 ID: {ConvId}", actualConvId);
-                }
+                _logger.LogInformation("新建并保存 Conversation ID: {ConvId}", actualConvId);
             }
 
-            // 2. 获取当前上下文
+            // 获取上下文（如果 null 或 Empty，Repository 会处理新建）
             var context = await _conversationRepository.GetContextAsync(actualConvId.ToString(), sellerId.ToString());
 
-            // 3. 构建用户消息 DTO
+            // 构建用户消息
             var userMsg = new ChatMessageDto
             {
                 IsFromUser = true,
                 Content = message,
                 MessageType = "text",
-                Data = extraData,  // 如果 extraData 是结构化数据，直接存入 Data
+                Data = extraData,
                 Timestamp = DateTime.UtcNow
             };
 
@@ -163,46 +146,39 @@ namespace Synerixis.Infrastructure.Services
 
             if (intent == ChatIntent.GeneralChat || intent == ChatIntent.Unknown)
             {
-                // 默认自然聊天
                 var aiReplyText = await _generalChatAgent.GenerateReplyAsync(message, context);
                 replyMsgs = new List<ChatMessageDto>
-                            {
-                                new ChatMessageDto
-                                {
-                                    IsFromUser = false,
-                                    Content = aiReplyText,
-                                    MessageType = "text",
-                                    Timestamp = DateTime.UtcNow
-                                }
-                            };
+        {
+            new ChatMessageDto
+            {
+                IsFromUser = false,
+                Content = aiReplyText,
+                MessageType = "text",
+                Timestamp = DateTime.UtcNow
+            }
+        };
             }
             else
             {
-                // 路由到专业 Agent
                 var agent = _agentRouter.GetAgent(intent);
-
                 if (agent == null)
                 {
-                    _logger.LogWarning("未找到 Agent for Intent: {Intent}", intent);
                     replyMsgs = new List<ChatMessageDto>
+            {
+                new ChatMessageDto
                 {
-                    new ChatMessageDto
-                    {
-                        IsFromUser = false,
-                        Content = "抱歉，暂不支持该功能～请描述得更详细些！",
-                        MessageType = "text",
-                        Timestamp = DateTime.UtcNow
-                    }
-                };
+                    IsFromUser = false,
+                    Content = "抱歉，暂不支持该功能～",
+                    MessageType = "text",
+                    Timestamp = DateTime.UtcNow
+                }
+            };
                 }
                 else
                 {
                     var agentResult = await agent.ProcessAsync(message, context);
-                    if (!agentResult.Success)
-                    {
-                        _logger.LogError("Agent 处理失败: {Error}", agentResult.ErrorMessage);
-                        replyMsgs = new List<ChatMessageDto>
-                    {
+                    replyMsgs = agentResult.Success ? agentResult.Messages.ToList() : new List<ChatMessageDto>
+                    {   
                         new ChatMessageDto
                         {
                             IsFromUser = false,
@@ -211,11 +187,6 @@ namespace Synerixis.Infrastructure.Services
                             Timestamp = DateTime.UtcNow
                         }
                     };
-                    }
-                    else
-                    {
-                        replyMsgs = agentResult.Messages.ToList();
-                    }
                 }
             }
 
@@ -223,15 +194,13 @@ namespace Synerixis.Infrastructure.Services
             var allMsgs = new List<ChatMessageDto> { userMsg };
             allMsgs.AddRange(replyMsgs);
 
-            await _conversationRepository.AppendMessagesAsync(
-                actualConvId.ToString(),
-                sellerId.ToString(),
-                allMsgs);
+            //获取实际的 ConversationId（如果是新建会话，Repository 会返回新的 Id）
+            actualConvId = await _conversationRepository.AppendMessagesAsync(actualConvId.ToString(),sellerId.ToString(),allMsgs);
 
-            // 7. 返回给前端
+            // 返回时用实际的 ConversationId（Repository 会更新 actualConvId 如果新建）
             return new ChatMessageReplyDto
             {
-                ConversationId = actualConvId,  // Guid 类型
+                ConversationId = actualConvId,  // 如果新建，Repository 会返回真实 Id（需调整）
                 Messages = allMsgs
             };
         }

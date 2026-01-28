@@ -25,37 +25,47 @@ namespace Synerixis.Domain.Entities
 
         private ChatMessage() { }
 
-        public static ChatMessage FromUser(string content)
+        public static ChatMessage FromUser(string content, Guid conversationId)
         {
-            return new ChatMessage
+            var msg = new ChatMessage
             {
+                Id = Guid.NewGuid(),
+                ConversationId = conversationId,  // 手动设置
                 IsFromUser = true,
                 Content = content,
                 MessageType = "text"  // 显式设置
             };
+            Console.WriteLine("创建 user 消息 Id: " + msg.Id);
+            return msg;
         }
 
-        public static ChatMessage FromAI(string content, string messageType = "text", object? data = null)
+        public static ChatMessage FromAI(string content, string messageType = "text", object? data = null,Guid conversationId = default)
         {
-            return new ChatMessage
+            var msg = new ChatMessage
             {
+                Id = Guid.NewGuid(),
+                ConversationId = conversationId,
                 IsFromUser = false,
                 Content = content,
                 MessageType = messageType,
                 DataJson = data != null ? System.Text.Json.JsonSerializer.Serialize(data) : null
             };
+            Console.WriteLine("创建1 AI 消息 Id: " + msg.Id);
+            return msg;
         }
 
         public static ChatMessage FromAI(string content, string messageType = "text", object? data = null, DateTime? timestamp = null)
         {
             var msg = new ChatMessage
             {
+                Id = Guid.NewGuid(),
                 IsFromUser = false,
                 Content = content,
                 MessageType = messageType,
                 DataJson = data != null ? JsonConvert.SerializeObject(data) : null, // 改用 Newtonsoft
                 Timestamp = timestamp ?? DateTime.UtcNow
             };
+            Console.WriteLine("创建2 AI 消息 Id: " + msg.Id);
             return msg;
         }
     }

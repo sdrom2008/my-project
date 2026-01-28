@@ -65,6 +65,7 @@ export default {
     },
 
     startNewChat() {
+	  uni.removeStorageSync('conversationId');
       uni.navigateTo({
         url: '/pages/chat/chat'
       });

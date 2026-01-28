@@ -14,6 +14,6 @@ namespace Synerixis.Application.Interfaces
 
         //新曾方法，用于获取聊天上下文
         Task<ChatContext> GetContextAsync(string conversationId, string sellerId); 
-        Task AppendMessagesAsync(string conversationId, string sellerId, IEnumerable<ChatMessageDto> messages);
+        Task<Guid> AppendMessagesAsync(string conversationId, string sellerId, IEnumerable<ChatMessageDto> messages);
     }
 }

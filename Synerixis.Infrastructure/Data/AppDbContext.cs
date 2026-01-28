@@ -47,7 +47,6 @@ namespace Synerixis.Infrastructure.Data
 
                 entity.HasOne(m => m.Conversation)
                       .WithMany(c => c.Messages)
-                      .HasForeignKey(m => m.ConversationId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
@@ -60,17 +59,6 @@ namespace Synerixis.Infrastructure.Data
                       .HasForeignKey(c => c.SellerId)
                       .OnDelete(DeleteBehavior.Restrict);
                 entity.HasIndex(c => c.SellerId);
-            });
-
-            modelBuilder.Entity<ChatMessage>(entity =>
-            {
-                entity.ToTable("chatmessage");
-                entity.HasKey(m => m.Id);
-                entity.HasOne(m => m.Conversation)
-                      .WithMany(c => c.Messages)
-                      .HasForeignKey(m => m.ConversationId)
-                      .OnDelete(DeleteBehavior.Cascade);
-                entity.HasIndex(m => m.ConversationId);
             });
         }
     }
