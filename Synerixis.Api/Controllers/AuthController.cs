@@ -228,6 +228,8 @@ public class AuthController : BaseApiController
         var openId = resp.OpenId;
         var sessionKey = resp.SessionKey;
 
+
+
         // 2. 解密手机号（用微信官方算法）
         try
         {

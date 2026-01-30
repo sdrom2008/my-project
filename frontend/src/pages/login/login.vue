@@ -5,14 +5,14 @@
     <view class="desc">一键接入，AI 帮你 24h 客服 & 增长</view>
 
     <!-- 微信一键登录（先授权用户信息，再手机号） -->
-    <button 
-      class="wechat-btn" 
-      open-type="getUserInfo" 
-      @getuserinfo="handleWechatUserInfo"
-      :loading="wechatLoading"
-    >
-      <text>微信一键登录</text>
-    </button>
+		<button 
+		  class="wechat-btn" 
+		  open-type="getPhoneNumber" 
+		  @getphonenumber="handleGetPhoneNumber"
+		  :loading="wechatLoading"
+		>
+		  <text>微信一键登录（获取手机号）</text>
+		</button>
 
     <view class="divider">或</view>
 
@@ -73,50 +73,56 @@ export default {
 
   methods: {
     // 微信授权用户信息（第一步）
-    async handleWechatUserInfo(e) {
-      if (!e.detail.userInfo) {
-        uni.showToast({ title: '授权失败，请重试', icon: 'none' });
-        return;
-      }
+  async handleGetPhoneNumber(e) {
+    this.wechatLoading = true;
 
-      this.wechatLoading = true;
+    const detail = e.detail;
+    console.log('getPhoneNumber 返回：', detail);  // 调试用
 
-      try {
-        // 授权成功后，再获取手机号（第二步）
-        const phoneRes = await uni.getPhoneNumber();  // 需要 open-type="getPhoneNumber" 按钮配合
+    if (detail.errMsg && detail.errMsg.includes('deny')) {
+      uni.showToast({ title: '用户拒绝授权', icon: 'none' });
+      this.wechatLoading = false;
+      return;
+    }
 
-        if (phoneRes.detail.errMsg.includes("fail")) {
-          uni.showToast({ title: '手机号授权失败', icon: 'none' });
-          return;
+    if (!detail.encryptedData || !detail.iv) {
+      uni.showToast({ title: '获取手机号失败，请重试', icon: 'none' });
+      this.wechatLoading = false;
+      return;
+    }
+
+    try {
+      // 获取 code（可选，但推荐用新 code 校验）
+      const loginRes = await uni.login({ provider: 'weixin' });
+      const code = loginRes.code;  // 或用 detail.code（新版有）
+
+      const res = await uni.request({
+        url: `${testbase}/api/auth/decrypt-phone`,
+        method: 'POST',
+        data: {
+          code,  // 可以传，也可以不传（后端可跳过 jscode2session 如果信任）
+          encryptedData: detail.encryptedData,
+          iv: detail.iv
         }
+      });
 
-        const { code } = await uni.login({ provider: 'weixin' });
+      console.log('后端响应：', res);
 
-        const res = await uni.request({
-          url: `${testbase}/api/auth/decrypt-phone`,
-          method: 'POST',
-          data: {
-            code,
-            encryptedData: phoneRes.detail.encryptedData,
-            iv: phoneRes.detail.iv
-          }
-        });
-
-        if (res.data && res.data.token) {
-          uni.setStorageSync('token', res.data.token);
-          uni.setStorageSync('sellerId', res.data.sellerId);
-
-          uni.showToast({ title: '登录成功', icon: 'success' });
-          uni.switchTab({ url: '/pages/conversations/conversations' });
-        } else {
-          uni.showToast({ title: res.data?.message || '登录失败', icon: 'none' });
-        }
-      } catch (err) {
-        uni.showToast({ title: '网络错误', icon: 'none' });
-      } finally {
-        this.wechatLoading = false;
+      if (res.statusCode === 200 && res.data.token) {
+        uni.setStorageSync('token', res.data.token);
+        uni.setStorageSync('sellerId', res.data.sellerId);
+        uni.showToast({ title: '登录成功', icon: 'success' });
+        uni.switchTab({ url: '/pages/conversations/conversations' });
+      } else {
+        uni.showToast({ title: res.data?.message || '登录失败', icon: 'none' });
       }
-    },
+    } catch (err) {
+      console.error('登录异常：', err);
+      uni.showToast({ title: '网络错误，请检查控制台', icon: 'none' });
+    } finally {
+      this.wechatLoading = false;
+    }
+  },
 
     // 发送验证码
     async sendCode() {
