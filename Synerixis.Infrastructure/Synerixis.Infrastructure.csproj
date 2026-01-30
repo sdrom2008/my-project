@@ -7,11 +7,20 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="FakesAssemblies\**" />
+    <EmbeddedResource Remove="FakesAssemblies\**" />
+    <None Remove="FakesAssemblies\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AlibabaCloud.SDK.Dysmsapi20170525" Version="4.2.0" />
+    <PackageReference Include="aliyun-net-sdk-core" Version="1.6.2" />
     <PackageReference Include="Cnblogs.SemanticKernel.Connectors.DashScope" Version="0.6.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.QualityTools.Testing.Fakes" Version="17.5.0-beta.23060.1" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.69.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.69.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
@@ -22,6 +31,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Synerixis.Application\Synerixis.Application.csproj" />
     <ProjectReference Include="..\Synerixis.Domain\Synerixis.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalDesignTimeBuildInput Remove="FakesAssemblies\**" />
   </ItemGroup>
 
 </Project>

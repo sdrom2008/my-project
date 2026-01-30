@@ -1,15 +1,17 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
-using Synerixis.Infrastructure.Services;
 using Synerixis.Api.Controllers;
+using Synerixis.Application.DTOs;
 using Synerixis.Application.Interfaces;
+using Synerixis.Domain.Common;
 using Synerixis.Domain.Entities;
 using Synerixis.Infrastructure.Data;
+using Synerixis.Infrastructure.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Synerixis.Application.DTOs;
 
 [ApiController]
 [Route("api/auth")]
@@ -19,13 +21,17 @@ public class AuthController : BaseApiController
     private readonly IConfiguration _config;
     private readonly HttpClient _http;
     private readonly IAuthService _authService;
+    private readonly AliyunSmsService _smsService;
+    private readonly IMemoryCache _cache;  // 用于缓存验证码等
 
-    public AuthController(AppDbContext db, IAuthService authService, IConfiguration config, IHttpClientFactory factory)
+    public AuthController(AppDbContext db, IAuthService authService, IConfiguration config, IHttpClientFactory factory, AliyunSmsService smsService,IMemoryCache cache)
     {
         _db = db;
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _config = config;
         _http = factory.CreateClient();
+        _smsService = smsService;
+        _cache = cache;
     }
 
     /// <summary>
@@ -83,8 +89,8 @@ public class AuthController : BaseApiController
             return BadRequest("手机号和验证码不能为空");
 
         // 校验验证码（这里假设你有验证码服务，示例用缓存模拟）
-        //var cachedCode = await _cache.GetAsync<string>($"sms:{dto.Phone}");
-        //if (cachedCode != dto.Code) return BadRequest("验证码错误");
+        if (!_cache.TryGetValue($"sms:{dto.Phone}", out string cachedCode) || cachedCode != dto.Code)
+            return BadRequest("验证码错误或已过期");
 
         var seller = await _db.Sellers.FirstOrDefaultAsync(s => s.Phone == dto.Phone);
 
@@ -155,19 +161,20 @@ public class AuthController : BaseApiController
     [HttpPost("send-code")]
     public async Task<IActionResult> SendCode([FromBody] SendCodeDto dto)
     {
-        if (string.IsNullOrEmpty(dto.Phone) || dto.Phone.Length != 11)
+        if (string.IsNullOrEmpty(dto.Phone) || dto.Phone.Length != 11 || !dto.Phone.StartsWith("1"))
             return BadRequest("手机号格式错误");
 
-        // 生成 4 位验证码
-        var code = "6666";  //new Random().Next(1000, 9999).ToString();
+        var code = new Random().Next(100000, 999999).ToString();
 
-        // 实际发短信（这里模拟，替换成你的短信 SDK）
-        // await _smsService.SendAsync(dto.Phone, $"您的验证码是 {code}，5分钟有效");
+        var success = await _smsService.SendVerificationCodeAsync(dto.Phone, code);
 
-        // 存到缓存（5 分钟过期）
-        //await _cache.SetAsync($"sms:{dto.Phone}", code, TimeSpan.FromMinutes(5));
+        if (!success)
+            return StatusCode(500, "发送验证码失败，请稍后重试");
 
-        return Ok(new { message = "验证码已发送" });
+        // 存到缓存，5分钟过期
+        _cache.Set($"sms:{dto.Phone}", code, TimeSpan.FromMinutes(5));
+
+        return Ok(new { message = "验证码已发送，5分钟内有效" });
     }
 
     /// <summary>
@@ -202,6 +209,67 @@ public class AuthController : BaseApiController
 
         var token = _authService.GenerateJwt(seller.Id);
         return Ok(new { token, sellerId = seller.Id });
+    }
+
+    [HttpPost("decrypt-phone")]
+    public async Task<IActionResult> DecryptPhone([FromBody] DecryptPhoneDto dto)
+    {
+        // dto: code (wx.login 的 code), encryptedData, iv
+
+        // 1. 用 code 换 session_key 和 openid
+        var appId = _config["WeChat:AppId"];
+        var secret = _config["WeChat:AppSecret"];
+        var url = $"https://api.weixin.qq.com/sns/jscode2session?appid={appId}&secret={secret}&js_code={dto.Code}&grant_type=authorization_code";
+
+        var resp = await _http.GetFromJsonAsync<WeChatSessionResp>(url);
+        if (resp?.OpenId == null || string.IsNullOrEmpty(resp.SessionKey))
+            return BadRequest("微信授权失败");
+
+        var openId = resp.OpenId;
+        var sessionKey = resp.SessionKey;
+
+        // 2. 解密手机号（用微信官方算法）
+        try
+        {
+            var phoneInfo = WxDecryptHelper.DecryptPhone(dto.EncryptedData, dto.Iv, sessionKey, appId);
+            var phone = phoneInfo.PhoneNumber;
+
+            // 3. 查找或创建商户
+            var seller = await _db.Sellers.FirstOrDefaultAsync(s => s.OpenId == openId);
+
+            if (seller == null)
+            {
+                // 新商户，用手机号注册
+                seller = Seller.CreateWithPhone(phone);
+                seller.BindWechat(openId);
+                _db.Sellers.Add(seller);
+            }
+            else
+            {
+                // 已存在，绑定手机号（如果没绑）
+                if (string.IsNullOrEmpty(seller.Phone))
+                {
+                    seller.BindPhone(phone);
+                }
+            }
+
+            seller.RecordLogin("wechat");
+            await _db.SaveChangesAsync();
+
+            var token = _authService.GenerateJwt(seller.Id);
+            return Ok(new
+            {
+                token,
+                sellerId = seller.Id,
+                nickname = seller.Nickname,
+                freeQuota = seller.FreeQuota
+            });
+        }
+        catch (Exception ex)
+        {
+            //_logger.LogError(ex, "解密手机号失败");
+            return BadRequest("授权失败，请重试");
+        }
     }
 }
 public class SendCodeDto

@@ -40,7 +40,10 @@ builder.Services.AddScoped<IIntentClassifier, IntentClassifier>();
 // 5. Agent 先注册（所有具体 Agent）
 builder.Services.AddScoped<IAgent, ProductOptimizationAgent>();
 // 如果有其他 Agent，在这里继续加
+builder.Services.AddSingleton<AliyunSmsService>();
 
+// 内存缓存（用于意图分类等）
+builder.Services.AddMemoryCache();
 
 // 专用仓储（如果有）
 builder.Services.AddScoped<IConversationRepository, ConversationRepository>();

@@ -4,8 +4,13 @@
     <view class="title">Synerixis - AI 智能伙伴</view>
     <view class="desc">一键接入，AI 帮你 24h 客服 & 增长</view>
 
-    <!-- 微信一键登录（保留原有） -->
-    <button class="wechat-btn" open-type="getUserInfo" @getuserinfo="handleWechatLogin">
+    <!-- 微信一键登录（先授权用户信息，再手机号） -->
+    <button 
+      class="wechat-btn" 
+      open-type="getUserInfo" 
+      @getuserinfo="handleWechatUserInfo"
+      :loading="wechatLoading"
+    >
       <text>微信一键登录</text>
     </button>
 
@@ -16,9 +21,10 @@
       <input 
         v-model="phone" 
         placeholder="请输入手机号" 
-        type="number" 
+        type="tel" 
         maxlength="11" 
         class="input" 
+        focus 
       />
       <view class="code-row">
         <input 
@@ -30,46 +36,70 @@
         />
         <button 
           class="code-btn" 
-          :disabled="countdown > 0" 
+          :disabled="countdown > 0 || sendCodeLoading" 
           @tap="sendCode"
+          :loading="sendCodeLoading"
         >
           {{ countdown > 0 ? countdown + '秒' : '获取验证码' }}
         </button>
       </view>
-      <button class="login-btn" @tap="handlePhoneLogin">登录 / 注册</button>
+      <button 
+        class="login-btn" 
+        @tap="handlePhoneLogin" 
+        :loading="loginLoading"
+        :disabled="loginLoading"
+      >
+        登录 / 注册
+      </button>
     </view>
 
     <view class="tip">登录即同意《用户协议》和《隐私政策》</view>
   </view>
 </template>
-
 <script>
-const testbase = 'http://192.168.1.254:7092';
+const testbase = 'http://localhost:7092';
 
 export default {
   data() {
     return {
       phone: '',
       code: '',
-      countdown: 0
+      countdown: 0,
+      wechatLoading: false,
+      sendCodeLoading: false,
+      loginLoading: false
     };
   },
 
   methods: {
-    // 微信一键登录（保留原有逻辑）
-    async handleWechatLogin(e) {
+    // 微信授权用户信息（第一步）
+    async handleWechatUserInfo(e) {
       if (!e.detail.userInfo) {
         uni.showToast({ title: '授权失败，请重试', icon: 'none' });
         return;
       }
 
+      this.wechatLoading = true;
+
       try {
+        // 授权成功后，再获取手机号（第二步）
+        const phoneRes = await uni.getPhoneNumber();  // 需要 open-type="getPhoneNumber" 按钮配合
+
+        if (phoneRes.detail.errMsg.includes("fail")) {
+          uni.showToast({ title: '手机号授权失败', icon: 'none' });
+          return;
+        }
+
         const { code } = await uni.login({ provider: 'weixin' });
 
         const res = await uni.request({
-          url: `${testbase}/api/auth/wechat`,
+          url: `${testbase}/api/auth/decrypt-phone`,
           method: 'POST',
-          data: { code }
+          data: {
+            code,
+            encryptedData: phoneRes.detail.encryptedData,
+            iv: phoneRes.detail.iv
+          }
         });
 
         if (res.data && res.data.token) {
@@ -78,16 +108,13 @@ export default {
 
           uni.showToast({ title: '登录成功', icon: 'success' });
           uni.switchTab({ url: '/pages/conversations/conversations' });
-        } else if (res.data.needBind) {
-          // 未绑定，跳转绑定手机号页面
-          uni.navigateTo({
-            url: `/pages/login/bind-phone?openid=${res.data.openid}`
-          });
         } else {
           uni.showToast({ title: res.data?.message || '登录失败', icon: 'none' });
         }
       } catch (err) {
         uni.showToast({ title: '网络错误', icon: 'none' });
+      } finally {
+        this.wechatLoading = false;
       }
     },
 
@@ -97,6 +124,8 @@ export default {
         uni.showToast({ title: '手机号格式错误', icon: 'none' });
         return;
       }
+
+      this.sendCodeLoading = true;
 
       try {
         const res = await uni.request({
@@ -117,6 +146,8 @@ export default {
         }
       } catch (err) {
         uni.showToast({ title: '网络错误', icon: 'none' });
+      } finally {
+        this.sendCodeLoading = false;
       }
     },
 
@@ -127,12 +158,17 @@ export default {
         return;
       }
 
+  console.log('授权成功，encryptedData:', e.detail.encryptedData);
+      this.loginLoading = true;
+
       try {
         const res = await uni.request({
           url: `${testbase}/api/auth/phone-login`,
           method: 'POST',
           data: { phone: this.phone, code: this.code }
         });
+
+    console.log('后端响应:', res);
 
         if (res.statusCode === 200 && res.data.token) {
           uni.setStorageSync('token', res.data.token);
@@ -145,6 +181,8 @@ export default {
         }
       } catch (err) {
         uni.showToast({ title: '网络错误', icon: 'none' });
+      } finally {
+        this.loginLoading = false;
       }
     }
   }
