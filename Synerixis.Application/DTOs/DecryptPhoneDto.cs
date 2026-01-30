@@ -8,6 +8,7 @@ namespace Synerixis.Application.DTOs
 {
     public class DecryptPhoneDto
     {
+        public string OpenId { get; set; }
         public string Code { get; set; }
         public string EncryptedData { get; set; }
         public string Iv { get; set; }

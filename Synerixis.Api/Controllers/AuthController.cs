@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json;
 using Synerixis.Api.Controllers;
 using Synerixis.Application.DTOs;
 using Synerixis.Application.Interfaces;
@@ -10,6 +11,7 @@ using Synerixis.Domain.Entities;
 using Synerixis.Infrastructure.Data;
 using Synerixis.Infrastructure.Services;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http;
 using System.Security.Claims;
 using System.Text;
 
@@ -208,69 +210,61 @@ public class AuthController : BaseApiController
         await _db.SaveChangesAsync();
 
         var token = _authService.GenerateJwt(seller.Id);
-        return Ok(new { token, sellerId = seller.Id });
+        return Ok(new
+        {
+            code = 200,
+            token,
+            sellerId = seller.Id,
+            nickname = seller.Nickname ?? "",
+            freeQuota = seller.FreeQuota,
+            subscriptionLevel = seller.SubscriptionLevel,
+            msg = "绑定成功"
+        });
     }
 
     [HttpPost("decrypt-phone")]
     public async Task<IActionResult> DecryptPhone([FromBody] DecryptPhoneDto dto)
     {
-        // dto: code (wx.login 的 code), encryptedData, iv
+        // 校验参数（历史中常见缺失问题）
+        if (string.IsNullOrEmpty(dto.Code) || string.IsNullOrEmpty(dto.EncryptedData) || string.IsNullOrEmpty(dto.Iv) || string.IsNullOrEmpty(dto.OpenId))
+            return BadRequest(new { code = 400, msg = "参数缺失" });
 
-        // 1. 用 code 换 session_key 和 openid
+        // jscode2session（用 dto.Code）
         var appId = _config["WeChat:AppId"];
         var secret = _config["WeChat:AppSecret"];
         var url = $"https://api.weixin.qq.com/sns/jscode2session?appid={appId}&secret={secret}&js_code={dto.Code}&grant_type=authorization_code";
+        var response = await _http.GetStringAsync(url);
+        var wxResult = JsonConvert.DeserializeObject<Dictionary<string, object>>(response);
 
-        var resp = await _http.GetFromJsonAsync<WeChatSessionResp>(url);
-        if (resp?.OpenId == null || string.IsNullOrEmpty(resp.SessionKey))
-            return BadRequest("微信授权失败");
+        if (wxResult.ContainsKey("errcode"))
+            return BadRequest(new { code = 400, msg = $"微信错误: {wxResult["errmsg"]}" });
 
-        var openId = resp.OpenId;
-        var sessionKey = resp.SessionKey;
+        var sessionKey = wxResult["session_key"].ToString();
+        var openIdFromWx = wxResult["openid"].ToString();
 
+        // 安全校验：openid 匹配
+        if (openIdFromWx != dto.OpenId) return BadRequest(new { code = 400, msg = "openid 不匹配" });
 
-
-        // 2. 解密手机号（用微信官方算法）
+        // 解密（用 WxDecryptHelper）
         try
         {
             var phoneInfo = WxDecryptHelper.DecryptPhone(dto.EncryptedData, dto.Iv, sessionKey, appId);
-            var phone = phoneInfo.PhoneNumber;
+            var phone = phoneInfo.PurePhoneNumber;
 
-            // 3. 查找或创建商户
-            var seller = await _db.Sellers.FirstOrDefaultAsync(s => s.OpenId == openId);
+            var seller = await _db.Sellers.FirstOrDefaultAsync(s => s.OpenId == dto.OpenId);
+            if (seller == null) return BadRequest(new { code = 404, msg = "用户不存在" });
 
-            if (seller == null)
-            {
-                // 新商户，用手机号注册
-                seller = Seller.CreateWithPhone(phone);
-                seller.BindWechat(openId);
-                _db.Sellers.Add(seller);
-            }
-            else
-            {
-                // 已存在，绑定手机号（如果没绑）
-                if (string.IsNullOrEmpty(seller.Phone))
-                {
-                    seller.BindPhone(phone);
-                }
-            }
-
-            seller.RecordLogin("wechat");
+            seller.BindPhone(phone);
+            seller.ConsumeQuota();
             await _db.SaveChangesAsync();
 
-            var token = _authService.GenerateJwt(seller.Id);
-            return Ok(new
-            {
-                token,
-                sellerId = seller.Id,
-                nickname = seller.Nickname,
-                freeQuota = seller.FreeQuota
-            });
+            var token = _authService.GenerateJwt(seller.Id);  // 您的 token 方法
+            return Ok(new { code = 200, token, msg = "绑定成功" });
         }
         catch (Exception ex)
         {
-            //_logger.LogError(ex, "解密手机号失败");
-            return BadRequest("授权失败，请重试");
+            //_logger.LogError(ex, "解密失败");
+            return StatusCode(500, new { code = 500, msg = "系统错误，请重试" });
         }
     }
 }
