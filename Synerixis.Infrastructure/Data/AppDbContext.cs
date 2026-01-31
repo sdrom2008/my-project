@@ -8,6 +8,7 @@ namespace Synerixis.Infrastructure.Data
     {
         public DbSet<Seller> Sellers { get; set; }
         public DbSet<SellerConfig> SellerConfigs { get; set; }
+        public DbSet<SellerProduct> SellerProducts { get; set; }
         public DbSet<Conversation> Conversations { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
 
@@ -56,6 +57,18 @@ namespace Synerixis.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Restrict);
                 entity.HasIndex(c => c.SellerId);
             });
+
+            modelBuilder.Entity<SellerConfig>()
+                .HasOne(c => c.Seller)
+                .WithOne()
+                .HasForeignKey<SellerConfig>(c => c.SellerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SellerProduct>()
+                .HasOne(p => p.Seller)
+                .WithMany()
+                .HasForeignKey(p => p.SellerId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

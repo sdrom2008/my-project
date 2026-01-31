@@ -12,7 +12,7 @@ using Synerixis.Infrastructure.Data;
 namespace Synerixis.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260129172508_InitialCreateWithLowerCaseTables")]
+    [Migration("20260131112044_InitialCreateWithLowerCaseTables")]
     partial class InitialCreateWithLowerCaseTables
     {
         /// <inheritdoc />
@@ -163,24 +163,106 @@ namespace Synerixis.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("binary(16)");
 
-                    b.Property<string>("ApiKey")
+                    b.Property<bool>("AutoMarketingReminder")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("MainCategory")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<string>("CustomRules")
+                    b.Property<int>("MemoryRetentionDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<string>("DbConnectionString")
+                    b.Property<string>("ReplyTone")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<byte[]>("SellerId")
                         .IsRequired()
                         .HasColumnType("binary(16)");
 
+                    b.Property<string>("ShopLogo")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ShopName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("TargetCustomer")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SellerId")
+                        .IsUnique();
+
+                    b.ToTable("SellerConfigs");
+                });
+
+            modelBuilder.Entity("Synerixis.Domain.Entities.SellerProduct", b =>
+                {
+                    b.Property<byte[]>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("binary(16)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ExternalProductId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ImagesJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("ImportedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ImportedFrom")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<byte[]>("SellerId")
+                        .IsRequired()
+                        .HasColumnType("binary(16)");
+
+                    b.Property<string>("TagsJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("SellerId");
 
-                    b.ToTable("SellerConfigs");
+                    b.ToTable("SellerProducts");
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.ChatMessage", b =>
@@ -206,6 +288,17 @@ namespace Synerixis.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.SellerConfig", b =>
+                {
+                    b.HasOne("Synerixis.Domain.Entities.Seller", "Seller")
+                        .WithOne()
+                        .HasForeignKey("Synerixis.Domain.Entities.SellerConfig", "SellerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Seller");
+                });
+
+            modelBuilder.Entity("Synerixis.Domain.Entities.SellerProduct", b =>
                 {
                     b.HasOne("Synerixis.Domain.Entities.Seller", "Seller")
                         .WithMany()

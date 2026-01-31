@@ -83,18 +83,64 @@ namespace Synerixis.Infrastructure.Migrations
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
                     SellerId = table.Column<byte[]>(type: "binary(16)", nullable: false),
-                    ApiKey = table.Column<string>(type: "longtext", nullable: true)
+                    ShopName = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    DbConnectionString = table.Column<string>(type: "longtext", nullable: true)
+                    ShopLogo = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    CustomRules = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                    MainCategory = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TargetCustomer = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ReplyTone = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PreferredLanguage = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    AutoMarketingReminder = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    MemoryRetentionDays = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SellerConfigs", x => x.Id);
                     table.ForeignKey(
                         name: "FK_SellerConfigs_sellers_SellerId",
+                        column: x => x.SellerId,
+                        principalTable: "sellers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "SellerProducts",
+                columns: table => new
+                {
+                    Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
+                    SellerId = table.Column<byte[]>(type: "binary(16)", nullable: false),
+                    ExternalProductId = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Title = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Price = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    ImagesJson = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Category = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TagsJson = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ImportedFrom = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ImportedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SellerProducts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SellerProducts_sellers_SellerId",
                         column: x => x.SellerId,
                         principalTable: "sellers",
                         principalColumn: "Id",
@@ -142,6 +188,12 @@ namespace Synerixis.Infrastructure.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_SellerConfigs_SellerId",
                 table: "SellerConfigs",
+                column: "SellerId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SellerProducts_SellerId",
+                table: "SellerProducts",
                 column: "SellerId");
 
             migrationBuilder.CreateIndex(
@@ -159,6 +211,9 @@ namespace Synerixis.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "SellerConfigs");
+
+            migrationBuilder.DropTable(
+                name: "SellerProducts");
 
             migrationBuilder.DropTable(
                 name: "conversations");

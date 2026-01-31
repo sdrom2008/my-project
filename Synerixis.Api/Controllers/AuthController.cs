@@ -59,24 +59,39 @@ public class AuthController : BaseApiController
 
         if (seller == null)
         {
-            // 未绑定，返回 openid，让前端引导绑定手机号
+            // 新用户：创建记录（Phone 为空）
+            seller = Seller.Create(openId);
+
+            _db.Sellers.Add(seller);
+            await _db.SaveChangesAsync();
+
             return Ok(new { needBind = true, openid = openId });
         }
-        // 已绑定，直接登录
-        seller.RecordLogin("wechat");
-        await _db.SaveChangesAsync();
 
-        var token = _authService.GenerateJwt(seller.Id);
-        Console.WriteLine("生成 JWT 时使用的 sellerId = " + seller.Id.ToString());
-        return Ok(new
+
+        // 已存在
+        if (!string.IsNullOrEmpty(seller.Phone))
         {
-            token,
-            sellerId = seller.Id,
-            nickname = seller.Nickname,
-            avatarUrl = seller.AvatarUrl,
-            subscriptionLevel = seller.SubscriptionLevel,
-            freeQuota = seller.FreeQuota
-        });
+            // 已绑定手机号，直接登录
+            seller.RecordLogin("wechat");
+            await _db.SaveChangesAsync();
+
+            var token = _authService.GenerateJwt(seller.Id);
+            return Ok(new
+            {
+                token,
+                sellerId = seller.Id,
+                nickname = seller.Nickname,
+                avatarUrl = seller.AvatarUrl,
+                subscriptionLevel = seller.SubscriptionLevel,
+                freeQuota = seller.FreeQuota
+            });
+        }
+        else
+        {
+            // 已存在但没手机号，返回 needBind
+            return Ok(new { needBind = true, openid = openId });
+        }
     }
 
     /// <summary>
@@ -225,14 +240,15 @@ public class AuthController : BaseApiController
     [HttpPost("decrypt-phone")]
     public async Task<IActionResult> DecryptPhone([FromBody] DecryptPhoneDto dto)
     {
-        // 校验参数（历史中常见缺失问题）
-        if (string.IsNullOrEmpty(dto.Code) || string.IsNullOrEmpty(dto.EncryptedData) || string.IsNullOrEmpty(dto.Iv) || string.IsNullOrEmpty(dto.OpenId))
+        if (string.IsNullOrEmpty(dto.Code) || string.IsNullOrEmpty(dto.EncryptedData) ||
+            string.IsNullOrEmpty(dto.Iv) || string.IsNullOrEmpty(dto.OpenId))
             return BadRequest(new { code = 400, msg = "参数缺失" });
 
-        // jscode2session（用 dto.Code）
+        // jscode2session
         var appId = _config["WeChat:AppId"];
         var secret = _config["WeChat:AppSecret"];
         var url = $"https://api.weixin.qq.com/sns/jscode2session?appid={appId}&secret={secret}&js_code={dto.Code}&grant_type=authorization_code";
+
         var response = await _http.GetStringAsync(url);
         var wxResult = JsonConvert.DeserializeObject<Dictionary<string, object>>(response);
 
@@ -242,28 +258,57 @@ public class AuthController : BaseApiController
         var sessionKey = wxResult["session_key"].ToString();
         var openIdFromWx = wxResult["openid"].ToString();
 
-        // 安全校验：openid 匹配
-        if (openIdFromWx != dto.OpenId) return BadRequest(new { code = 400, msg = "openid 不匹配" });
+        if (openIdFromWx != dto.OpenId)
+            return BadRequest(new { code = 400, msg = "openid 不匹配" });
 
-        // 解密（用 WxDecryptHelper）
+        // 解密手机号
         try
         {
             var phoneInfo = WxDecryptHelper.DecryptPhone(dto.EncryptedData, dto.Iv, sessionKey, appId);
             var phone = phoneInfo.PurePhoneNumber;
 
+            // 先按 openId 查找（微信登录时已创建）
             var seller = await _db.Sellers.FirstOrDefaultAsync(s => s.OpenId == dto.OpenId);
-            if (seller == null) return BadRequest(new { code = 404, msg = "用户不存在" });
 
-            seller.BindPhone(phone);
-            seller.ConsumeQuota();
+            if (seller == null)
+            {
+                // 理论上不应该进来（微信登录已创建），但加容错
+                seller = Seller.Create(dto.OpenId);
+                _db.Sellers.Add(seller);
+            }
+            else
+            {
+                // 已存在
+                if (string.IsNullOrEmpty(seller.Phone))
+                {
+                    // 首次绑定手机号，创建时候送免费额度。
+                    seller.BindPhone(phone);
+                }
+                else if (seller.Phone != phone)
+                {
+                    // 换绑手机号（可选：不允许，或记录日志）
+                    // 这里建议不允许换绑，或加验证码校验
+                    return BadRequest(new { code = 400, msg = "手机号已绑定其他微信，无法更换" });
+                }
+                // 如果是同手机号重复绑定，不做处理
+            }
+
+            seller.RecordLogin("wechat-bind");
             await _db.SaveChangesAsync();
 
-            var token = _authService.GenerateJwt(seller.Id);  // 您的 token 方法
-            return Ok(new { code = 200, token, msg = "绑定成功" });
+            var token = _authService.GenerateJwt(seller.Id);
+
+            return Ok(new
+            {
+                code = 200,
+                token,
+                sellerId = seller.Id,
+                msg = "绑定成功"
+            });
         }
         catch (Exception ex)
         {
-            //_logger.LogError(ex, "解密失败");
+            // _logger.LogError(ex, "解密失败");
             return StatusCode(500, new { code = 500, msg = "系统错误，请重试" });
         }
     }

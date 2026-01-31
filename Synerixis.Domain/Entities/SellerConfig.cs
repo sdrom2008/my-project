@@ -8,12 +8,22 @@ namespace Synerixis.Domain.Entities
 {
     public class SellerConfig
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public Guid SellerId { get; set; }
-        public Seller? Seller { get; set; }  // 可选导航属性
+        public Guid Id { get; set; } = new Guid();
+        public Guid SellerId { get; set; }          // FK to sellers.Id
+        public string ShopName { get; set; }        // 店铺名称
+        public string ShopLogo { get; set; }        // logo URL
+        public string MainCategory { get; set; }    // 主营类目（如 "女装" "数码"）
+        public string TargetCustomer { get; set; }  // 目标客户群体描述（文本）
 
-        public string? ApiKey { get; set; }              // 通义千问 API Key
-        public string? DbConnectionString { get; set; }  // 如果每个卖家独立数据库连接（可选）
-        public string? CustomRules { get; set; }         // JSON 格式的自定义意图规则，例如 {"orderQuery": "select * from orders where ..."}
+        public string ReplyTone { get; set; }       // 回复语气：professional / friendly / humorous
+        public string PreferredLanguage { get; set; } // zh / en / bilingual
+        public bool AutoMarketingReminder { get; set; } = true; // 是否开启主动营销提醒
+        public int MemoryRetentionDays { get; set; } = 180;     // 记忆保留天数，0=永久
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        // 导航属性
+        public Seller Seller { get; set; }
     }
 }

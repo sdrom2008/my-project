@@ -6,11 +6,18 @@
 
 <view>
   <button open-type="getUserInfo" @getuserinfo="handleWechatLogin">微信登录</button>
-  
-  <view v-if="needBind">
-    <text>请绑定手机号</text>
-    <button open-type="getPhoneNumber" @getphonenumber="handleBindPhone">一键绑定</button>
-  </view>
+	<!-- 新增：绑定手机号引导（当 needBind 时显示） -->
+	<view v-if="needBind" class="bind-section">
+	  <text class="bind-tip">微信登录成功，请绑定手机号以完成注册</text>
+	  <button 
+		class="bind-btn" 
+		open-type="getPhoneNumber" 
+		@getphonenumber="handleBindPhone"
+		:loading="bindLoading"
+	  >
+		一键绑定手机号
+	  </button>
+	</view>
 </view>
 
     <view class="divider">或</view>
@@ -67,7 +74,7 @@ export default {
       sendCodeLoading: false,
       loginLoading: false,
 	  needBind: false,          // ← 必须加这一行！初始 false
-	  tempOpenid: ''            // 如果用了，也一起声明
+      tempOpenid: ''            // 新增，存 openid 用于绑定
     };
   },
 
@@ -106,47 +113,128 @@ export default {
         });
       }
     });
-  },  handleBindPhone(e) {
-    const detail = e.detail;
-	console.log('[DEBUG] 点击了一键授权');
-	
-    if (detail.errMsg.includes('deny')) return uni.showToast({ title: '拒绝授权' });
-    
-		console.log('[DEBUG] 授权信息 detail.encryptedData,detail.iv ：',detail.encryptedData,detail.iv);
-    if (!detail.encryptedData || !detail.iv) return uni.showToast({ title: '获取失败' });
-    
-    uni.login({  // 刷新 code
-	
-      success: loginRes => {
-		  
-		  console.log('[DEBUG] 准备调用 /api/auth/decrypt-phone，URL:', `${testbase}/api/auth/decrypt-phone`);
-		  
-        uni.request({
-          url: `${testbase}/api/auth/decrypt-phone`,
-          method: 'POST',
-          data: {
-            code: loginRes.code,
-            encryptedData: detail.encryptedData,
-            iv: detail.iv,
-            openId: this.tempOpenid  // 传 openid 确保绑定
-          },
-          success: res => {
-			  
-			  console.log('[DEBUG] res返回，data:', `/pages/conversations/conversations`);
-			  
-			  
-            if (res.data.code === 200) {
-              uni.setStorageSync('token', res.data.token);
-              uni.switchTab({ url: '/pages/conversations/conversations' });
-            } else {
-              uni.showToast({ title: res.data.msg || '绑定失败' });
-            }
-          },
-          fail: err => uni.showToast({ title: '网络错误: ' + err.errMsg })
-        });
+  },  
+  
+  async handleWechatUserInfo(e) {
+      if (!e.detail.userInfo) {
+        uni.showToast({ title: '授权失败', icon: 'none' });
+        return;
       }
-    });
-  },
+  
+      this.wechatLoading = true;
+  
+      try {
+        const { code } = await uni.login({ provider: 'weixin' });
+  
+        console.log('[DEBUG] 准备调用 /api/auth/wechat，code:', code);
+  
+        const res = await uni.request({
+          url: `${testbase}/api/auth/wechat`,
+          method: 'POST',
+          data: { code }
+        });
+  
+        console.log('[DEBUG] /wechat 返回:', res);
+  
+        if (res.statusCode === 200) {
+          const data = res.data;
+          if (data.token) {
+            // 已绑定，直接登录
+            uni.setStorageSync('token', data.token);
+            uni.setStorageSync('sellerId', data.sellerId);
+            uni.showToast({ title: '登录成功', icon: 'success' });
+            uni.switchTab({ url: '/pages/conversations/conversations' });
+          } else if (data.needBind) {
+            // 需要绑定手机号
+            this.needBind = true;
+            this.tempOpenid = data.openid;
+            uni.showToast({ title: '请绑定手机号', icon: 'none' });
+          } else {
+            uni.showToast({ title: data.msg || '登录失败', icon: 'none' });
+          }
+        } else {
+          uni.showToast({ title: '登录请求失败', icon: 'none' });
+        }
+      } catch (err) {
+        console.error('[ERROR] 微信登录异常:', err);
+        uni.showToast({ title: '网络错误: ' + (err.errMsg || '未知'), icon: 'none' });
+      } finally {
+        this.wechatLoading = false;
+      }
+    },
+  
+ async handleBindPhone(e) {
+   console.log('[DEBUG] handleBindPhone 被触发，完整 detail:', JSON.stringify(e.detail || {}));
+ 
+   const detail = e.detail || {};
+ 
+   // 1. 判断是否拒绝或失败
+   if (detail.errMsg && detail.errMsg.includes('deny')) {
+     uni.showToast({ title: '用户拒绝授权', icon: 'none' });
+     return;
+   }
+ 
+   if (detail.errMsg !== 'getPhoneNumber:ok' || !detail.encryptedData || !detail.iv) {
+     uni.showToast({ 
+       title: '获取手机号失败：' + (detail.errMsg || '未知错误'), 
+       icon: 'none' 
+     });
+     console.error('getPhoneNumber 失败:', detail);
+     return;
+   }
+ 
+   console.log('[DEBUG] 拿到数据成功：', {
+     encryptedData: detail.encryptedData.substring(0, 30) + '...',
+     iv: detail.iv,
+     code: detail.code || '(无新 code)',
+     cloudID: detail.cloudID || '(无)'
+   });
+ 
+   this.bindLoading = true;
+ 
+   try {
+     // 刷新 code（推荐做法，确保 session_key 最新）
+     const loginRes = await uni.login({ provider: 'weixin' });
+     const code = loginRes.code;
+ 
+     const res = await uni.request({
+       url: `${testbase}/api/auth/decrypt-phone`,
+       method: 'POST',
+       data: {
+         code,                     // 新 code
+         encryptedData: detail.encryptedData,
+         iv: detail.iv,
+         openId: this.tempOpenid   // 关键：绑定到正确的 seller
+       },
+       header: {
+         'content-type': 'application/json'
+       }
+     });
+ 
+     console.log('[DEBUG] /decrypt-phone 完整返回:', res);
+ 
+     if (res.statusCode === 200 && res.data && res.data.token) {
+       uni.setStorageSync('token', res.data.token);
+       uni.setStorageSync('sellerId', res.data.sellerId || '');
+       uni.showToast({ title: '绑定并登录成功', icon: 'success' });
+       uni.switchTab({ url: '/pages/conversations/conversations' });
+     } else {
+       uni.showToast({ 
+         title: res.data?.msg || res.data?.message || '绑定失败，请重试', 
+         icon: 'none' 
+       });
+     }
+   } catch (err) {
+     console.error('[ERROR] 绑定流程异常:', err);
+     uni.showToast({ 
+       title: '网络错误：' + (err.errMsg || '请检查控制台'), 
+       icon: 'none',
+       duration: 4000 
+     });
+   } finally {
+     this.bindLoading = false;
+   }
+ },
 
     // 发送验证码
     async sendCode() {
@@ -188,7 +276,6 @@ export default {
         return;
       }
 
-  console.log('授权成功，encryptedData:', e.detail.encryptedData);
       this.loginLoading = true;
 
       try {
