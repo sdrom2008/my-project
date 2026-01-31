@@ -30,6 +30,8 @@ namespace Synerixis.Domain.Entities
         // 反向导航：该商家的所有会话
         public List<Conversation> Conversations { get; private set; } = new();
 
+        public SellerConfig? Config { get; set; }  // 导航属性（可选）
+
         private Seller() { }  // EF Core 无参构造
 
         public static Seller Create(string openId, string? nickname = null, string? avatarUrl = null)
