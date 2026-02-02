@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Senparc.Weixin.RegisterServices;
 using Synerixis.Application.Agents;
 using Synerixis.Application.Interfaces;
 using Synerixis.Application.Services;
@@ -42,6 +43,8 @@ builder.Services.AddScoped<IAgent, ProductOptimizationAgent>();
 // 如果有其他 Agent，在这里继续加
 builder.Services.AddSingleton<AliyunSmsService>();
 
+builder.Services.AddScoped<ProductService>();
+
 // 内存缓存（用于意图分类等）
 builder.Services.AddMemoryCache();
 
@@ -56,6 +59,10 @@ builder.Services.AddScoped<IIntentClassifier, IntentClassifier>();
 // 6. AgentRouter（注册为接口！必须在所有 Agent 后）
 builder.Services.AddScoped<IAgentRouter, AgentRouter>();
 
+#region 添加微信配置
+builder.Services.AddSenparcWeixinServices(builder.Configuration);
+
+#endregion
 
 // 添加 OpenAPI/Swagger（可选，开发时方便）
 builder.Services.AddEndpointsApiExplorer();
@@ -106,6 +113,9 @@ builder.Services.AddHealthChecks()
 builder.Services.AddScoped<IAiChatService, AiChatService>();
 
 var app = builder.Build();
+
+//配置静态文件服务
+app.UseStaticFiles();
 
 // 中间件管道
 app.UseCors("AllowAll");

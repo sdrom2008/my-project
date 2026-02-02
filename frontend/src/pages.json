@@ -5,12 +5,21 @@
     { "path": "pages/conversations/conversations", "style": { "navigationBarTitleText": "会话列表" } },
     { "path": "pages/chat/chat", "style": { "navigationBarTitleText": "聊天" } },
 	{ "path": "pages/chat/list", "style": { "navigationBarTitleText": "会话列表" } },
-	{ "path": "pages/profile/profile", "style": { "navigationBarTitleText": "您的个人信息" } }
+	{ "path": "pages/dashboard/dashboard", "style": { "navigationBarTitleText": "仪表盘" } },
+	{ "path": "pages/profile/index", "style": { "navigationBarTitleText": "入口页" } },
+//	{ "path": "pages/profile/profile-info", "style": { "navigationBarTitleText": "您的个人信息" } },
+	{ "path": "pages/profile/shop-setting", "style": { "navigationBarTitleText": "店铺信息设置" } },
+	{ "path": "pages/profile/ai-preference", "style": { "navigationBarTitleText": "AI 偏好设置" } },
+	{ "path": "pages/profile/account-security", "style": { "navigationBarTitleText": "账号与安全" } },
+	{ "path": "pages/pay/subscribe", "style": { "navigationBarTitleText": "订单支付" } },
+	{ "path": "pages/products/products", "style": { "navigationBarTitleText": "商品管理" } }
+//	{ "path": "pages/profile/components/SettingCard", "style": { "navigationBarTitleText": "复用卡片组件" } }
   ],
   "tabBar": {
   "list": [
     { "pagePath": "pages/conversations/conversations", "text": "会话" },
-    { "pagePath": "pages/profile/profile", "text": "我的" }
+	{ "pagePath": "pages/dashboard/dashboard", "text": "仪表盘" },
+    { "pagePath": "pages/profile/index", "text": "我的" }
   ]
 }
 }

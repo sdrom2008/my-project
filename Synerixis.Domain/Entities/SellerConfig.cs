@@ -9,7 +9,7 @@ namespace Synerixis.Domain.Entities
     public class SellerConfig
     {
         public Guid Id { get; set; } = Guid.NewGuid();
-        public Guid SellerId { get; set; }                  // FK to Sellers.Id
+        public Guid? SellerId { get; set; }                  // FK to Sellers.Id
 
         public string ShopName { get; set; } = string.Empty;        // 店铺名称
         public string ShopLogo { get; set; } = string.Empty;        // logo URL

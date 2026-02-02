@@ -115,7 +115,7 @@ export default {
             uni.setStorageSync('token', data.token);
             uni.setStorageSync('sellerId', data.sellerId);
             uni.showToast({ title: '登录成功', icon: 'success' });
-            uni.switchTab({ url: '/pages/conversations/conversations' });
+            uni.switchTab({ url: '/pages/dashboard/dashboard' });
           } else if (data.needBind === true) {
             // 需要绑定手机号
             this.needBind = true;
@@ -189,7 +189,7 @@ export default {
           uni.setStorageSync('token', res.data.token);
           uni.setStorageSync('sellerId', res.data.sellerId || '');
           uni.showToast({ title: '绑定并登录成功', icon: 'success' });
-          uni.switchTab({ url: '/pages/conversations/conversations' });
+          uni.switchTab({ url: '/pages/dashboard/dashboard' });
         } else {
           uni.showToast({ 
             title: res.data?.msg || res.data?.message || '绑定失败，请重试', 
@@ -259,7 +259,7 @@ export default {
           uni.setStorageSync('token', res.data.token);
           uni.setStorageSync('sellerId', res.data.sellerId);
           uni.showToast({ title: '登录成功', icon: 'success' });
-          uni.switchTab({ url: '/pages/conversations/conversations' });
+          uni.switchTab({ url: '/pages/dashboard/dashboard' });
         } else {
           uni.showToast({ title: res.data?.message || '登录失败', icon: 'none' });
         }

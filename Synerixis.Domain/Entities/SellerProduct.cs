@@ -8,22 +8,27 @@ namespace Synerixis.Domain.Entities
 {
     public class SellerProduct
     {
-        public Guid Id { get; set; } = new Guid();
+        public Guid Id { get; set; } = Guid.NewGuid();
         public Guid SellerId { get; set; }
+        public Guid ProductId { get; set; }
 
-        public string ExternalProductId { get; set; }   // 淘宝/京东/拼多多商品ID
-        public string Title { get; set; }               // 商品标题
-        public string Description { get; set; }         // 原始描述
-        public decimal Price { get; set; }
-        public string ImagesJson { get; set; }          // JSON 数组：["url1", "url2"]
-        public string Category { get; set; }
-        public string TagsJson { get; set; }            // JSON 数组：["爆款","高性价比"]
+        public decimal? CustomPrice { get; set; }  // 商户自定义价格
+        public int? CustomStock { get; set; }      // 自定义库存
 
-        public string ImportedFrom { get; set; }        // taobao / jd / pdd / manual / excel
         public DateTime ImportedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+        public string Source { get; set; } = "manual";  // 类型：string，值如 "manual"、"taobao"
+
+        // 商户专属优化结果（核心：加在这里）
+        public string OptimizedTitle { get; set; } = string.Empty;
+        public string OptimizedDescription { get; set; } = string.Empty;
+        public string OptimizedTagsJson { get; set; } = "[]";
+
         // 导航属性
         public Seller Seller { get; set; }
+        public Product Product { get; set; }
+
+
     }
 }

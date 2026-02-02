@@ -26,6 +26,7 @@ namespace Synerixis.Domain.Entities
         public string? LastLoginType { get; private set; }                //最后登录方式：wechat / phone
         public DateTime? UpdatedAt { get; private set; }
 
+        public ICollection<SellerProduct> SellerProducts { get; set; } = new List<SellerProduct>();  // 新增：商户拥有的商品关联集合
 
         // 反向导航：该商家的所有会话
         public List<Conversation> Conversations { get; private set; } = new();
@@ -108,11 +109,6 @@ namespace Synerixis.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="newLevel"></param>
-        /// <exception cref="ArgumentException"></exception>
         public void UpgradeSubscription(string newLevel)
         {
             if (!new[] { "Free", "Basic", "Pro" }.Contains(newLevel))
@@ -121,5 +117,16 @@ namespace Synerixis.Domain.Entities
             SubscriptionLevel = newLevel;
             UpdatedAt = DateTime.UtcNow;
         }
+
+        // 应用订阅（支付成功后调用）
+        public void ApplySubscription(decimal amount)
+        {
+            // 月付 99 元权益
+            this.FreeQuota += 1000;
+            this.SubscriptionEnd = DateTime.UtcNow.AddDays(30);
+            this.SubscriptionLevel = "Pro";
+            this.UpdatedAt = DateTime.UtcNow;
+        }
+
     }
 }
