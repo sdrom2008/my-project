@@ -89,16 +89,17 @@ namespace Synerixis.Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     MainCategory = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    TargetCustomer = table.Column<string>(type: "longtext", nullable: false)
+                    TargetCustomerDesc = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ReplyTone = table.Column<string>(type: "longtext", nullable: false)
+                    DefaultReplyTone = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     PreferredLanguage = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    AutoMarketingReminder = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    EnableAutoMarketingReminder = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     MemoryRetentionDays = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    SellerId1 = table.Column<byte[]>(type: "binary(16)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -109,6 +110,11 @@ namespace Synerixis.Infrastructure.Migrations
                         principalTable: "sellers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_SellerConfigs_sellers_SellerId1",
+                        column: x => x.SellerId1,
+                        principalTable: "sellers",
+                        principalColumn: "Id");
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -189,6 +195,12 @@ namespace Synerixis.Infrastructure.Migrations
                 name: "IX_SellerConfigs_SellerId",
                 table: "SellerConfigs",
                 column: "SellerId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SellerConfigs_SellerId1",
+                table: "SellerConfigs",
+                column: "SellerId1",
                 unique: true);
 
             migrationBuilder.CreateIndex(

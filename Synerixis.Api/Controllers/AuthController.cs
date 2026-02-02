@@ -312,6 +312,12 @@ public class AuthController : BaseApiController
             return StatusCode(500, new { code = 500, msg = "系统错误，请重试" });
         }
     }
+
+    [HttpGet("test")]
+    public async Task<IActionResult> test()
+    {
+        return Ok(new { message = "验证码已发送，5分钟内有效" });
+    }
 }
 public class SendCodeDto
 {

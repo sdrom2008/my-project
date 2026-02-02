@@ -160,11 +160,15 @@ namespace Synerixis.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("binary(16)");
 
-                    b.Property<bool>("AutoMarketingReminder")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DefaultReplyTone")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("EnableAutoMarketingReminder")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("MainCategory")
                         .IsRequired()
@@ -177,12 +181,11 @@ namespace Synerixis.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<string>("ReplyTone")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
                     b.Property<byte[]>("SellerId")
                         .IsRequired()
+                        .HasColumnType("binary(16)");
+
+                    b.Property<byte[]>("SellerId1")
                         .HasColumnType("binary(16)");
 
                     b.Property<string>("ShopLogo")
@@ -193,7 +196,7 @@ namespace Synerixis.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<string>("TargetCustomer")
+                    b.Property<string>("TargetCustomerDesc")
                         .IsRequired()
                         .HasColumnType("longtext");
 
@@ -203,6 +206,9 @@ namespace Synerixis.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("SellerId")
+                        .IsUnique();
+
+                    b.HasIndex("SellerId1")
                         .IsUnique();
 
                     b.ToTable("SellerConfigs");
@@ -292,6 +298,10 @@ namespace Synerixis.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Synerixis.Domain.Entities.Seller", null)
+                        .WithOne("Config")
+                        .HasForeignKey("Synerixis.Domain.Entities.SellerConfig", "SellerId1");
+
                     b.Navigation("Seller");
                 });
 
@@ -313,6 +323,8 @@ namespace Synerixis.Infrastructure.Migrations
 
             modelBuilder.Entity("Synerixis.Domain.Entities.Seller", b =>
                 {
+                    b.Navigation("Config");
+
                     b.Navigation("Conversations");
                 });
 #pragma warning restore 612, 618
