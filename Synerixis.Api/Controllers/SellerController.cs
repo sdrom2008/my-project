@@ -7,8 +7,8 @@ using Synerixis.Application.Services;
 using Synerixis.Domain.Entities;
 using Synerixis.Infrastructure.Data;
 using System.Security.Claims;
-using Microsoft.EntityFrameworkCore;
-using System.Linq; 
+using System.Linq;
+using System.Text.Json;
 
 namespace Synerixis.Api.Controllers
 {
@@ -31,43 +31,44 @@ namespace Synerixis.Api.Controllers
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
         {
-            var sellerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Guid.TryParse(sellerIdStr, out var sellerId))
-                return Unauthorized("无效身份");
-
-            var seller = await _db.Sellers
-                .Include(s => s.Config)
-                .FirstOrDefaultAsync(s => s.Id == sellerId);
-
-            if (seller == null)
-                return NotFound("商户不存在");
-
-            if (seller.Config == null)
+            try
             {
-                seller.Config = new SellerConfig
+                var sellerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!Guid.TryParse(sellerIdStr, out var sellerId))
+                    return Unauthorized("无效身份");
+
+                var seller = await _db.Sellers
+                    .Include(s => s.Config)
+                    .FirstOrDefaultAsync(s => s.Id == sellerId);
+
+                if (seller == null)
+                    return NotFound("商户不存在");
+
+                if (seller.Config == null)
                 {
-                    Id = Guid.NewGuid(),
-                    SellerId = sellerId,
-                    DefaultReplyTone = "professional",
-                    PreferredLanguage = "zh",
-                    MemoryRetentionDays = 180,
-                    EnableAutoMarketingReminder = true
-                };
-                _db.SellerConfigs.Add(seller.Config);
-                await _db.SaveChangesAsync();
-            }
+                    seller.Config = new SellerConfig { /* 默认值 */ };
+                    _db.SellerConfigs.Add(seller.Config);
+                    await _db.SaveChangesAsync();
+                }
 
-            return Ok(new
+                return Ok(new
+                {
+                    seller.Id,
+                    seller.Nickname,
+                    seller.AvatarUrl,
+                    seller.Phone,
+                    seller.FreeQuota,
+                    seller.SubscriptionLevel,
+                    seller.SubscriptionEnd,
+                    Config = seller.Config
+                });
+            }
+            catch (Exception ex)
             {
-                Id = seller.Id,
-                Nickname = seller.Nickname,
-                AvatarUrl = seller.AvatarUrl,
-                Phone = seller.Phone,
-                FreeQuota = seller.FreeQuota,
-                SubscriptionLevel = seller.SubscriptionLevel,
-                SubscriptionEnd = seller.SubscriptionEnd,
-                Config = seller.Config
-            });
+                // 加日志
+                Console.WriteLine("GetProfile 异常: " + ex.Message);
+                return StatusCode(500, "服务器内部错误，请检查日志");
+            }
         }
 
         [HttpPut("config")]
@@ -149,10 +150,24 @@ namespace Synerixis.Api.Controllers
         [HttpPost("products/import")]
         public async Task<IActionResult> ImportProduct([FromBody] ProductImportDto dto)
         {
+            Console.WriteLine("[DEBUG] 进入 ImportProduct，Raw Body: " + Request.Body.ToString());
+            Console.WriteLine("[DEBUG] DTO: " + JsonSerializer.Serialize(dto));
+
             var sellerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!Guid.TryParse(sellerIdStr, out var sellerId))
                 return Unauthorized();
 
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest("标题不能为空");
+
+            // 给 null 字段赋默认值
+            dto.Description ??= "";
+            dto.ImagesJson ??= "[]";
+            dto.TagsJson ??= "[]";
+            dto.Category ??= "";
+            dto.Source ??= "manual";
+
+            // 调用 Service
             var productId = await _productService.ImportProductAsync(sellerId, dto);
 
             return Ok(new { message = "商品导入成功", productId });
@@ -229,5 +244,31 @@ namespace Synerixis.Api.Controllers
 
             return Ok(new { message = "优化结果保存成功" });
         }
+
+        [HttpPost("products/fetch-url")]
+        public async Task<IActionResult> FetchFromUrl([FromBody] FetchUrlDto dto)
+        {
+            var sellerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(sellerIdStr, out var sellerId))
+                return Unauthorized();
+
+            // 模拟抓取逻辑（实际可加爬虫）
+            var product = new
+            {
+                title = "抓取商品 - 示例",
+                description = "抓取描述",
+                price = 99.99,
+                imagesJson = "[]",
+                category = "测试类目",
+                tagsJson = "[]"
+            };
+
+            return Ok(product);
+        }
+    }
+
+    public class FetchUrlDto
+    {
+        public string Url { get; set; }
     }
 }

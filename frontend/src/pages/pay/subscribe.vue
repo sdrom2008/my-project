@@ -28,7 +28,7 @@
 </template>
 
 <script>
-const testbase = 'http://192.168.1.254:7092';
+const testbase = 'http://192.168.10.7:7092';
 
 export default {
   data() {

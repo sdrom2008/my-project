@@ -12,7 +12,7 @@ using Synerixis.Infrastructure.Data;
 namespace Synerixis.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260202172424_InitialCreateWithLowerCaseTables")]
+    [Migration("20260202173721_InitialCreateWithLowerCaseTables")]
     partial class InitialCreateWithLowerCaseTables
     {
         /// <inheritdoc />
@@ -47,7 +47,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Brands");
+                    b.ToTable("brands", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.Category", b =>
@@ -77,7 +77,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Categories");
+                    b.ToTable("categories", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.ChatMessage", b =>
@@ -111,7 +111,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.HasIndex("ConversationId");
 
-                    b.ToTable("ChatMessages");
+                    b.ToTable("chat_messages", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.Conversation", b =>
@@ -144,7 +144,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.HasIndex("SellerId");
 
-                    b.ToTable("Conversations");
+                    b.ToTable("conversations", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.PayOrder", b =>
@@ -182,7 +182,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.HasIndex("SellerId");
 
-                    b.ToTable("PayOrders");
+                    b.ToTable("pay_orders", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.Product", b =>
@@ -220,7 +220,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.Property<string>("ImagesJson")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("longtext");
 
                     b.Property<decimal?>("Price")
                         .HasColumnType("decimal(65,30)");
@@ -230,7 +230,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.Property<string>("TagsJson")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -249,7 +249,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Products");
+                    b.ToTable("products", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.ProductAttribute", b =>
@@ -289,7 +289,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("ProductAttribute");
+                    b.ToTable("product_attributes", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.SKU", b =>
@@ -314,7 +314,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.Property<string>("SpecsJson")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Stock")
                         .HasColumnType("int");
@@ -326,7 +326,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("SKUs");
+                    b.ToTable("skus", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.Seller", b =>
@@ -362,7 +362,7 @@ namespace Synerixis.Infrastructure.Migrations
                     b.Property<string>("OpenId")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(128)");
 
                     b.Property<string>("PasswordHash")
                         .HasColumnType("longtext");
@@ -389,9 +389,10 @@ namespace Synerixis.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OpenId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_sellers_OpenId");
 
-                    b.ToTable("Sellers");
+                    b.ToTable("sellers", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.SellerConfig", b =>
@@ -444,7 +445,7 @@ namespace Synerixis.Infrastructure.Migrations
                     b.HasIndex("SellerId")
                         .IsUnique();
 
-                    b.ToTable("SellerConfigs");
+                    b.ToTable("seller_configs", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.SellerProduct", b =>
@@ -495,7 +496,7 @@ namespace Synerixis.Infrastructure.Migrations
 
                     b.HasIndex("SellerId");
 
-                    b.ToTable("SellerProducts");
+                    b.ToTable("seller_products", (string)null);
                 });
 
             modelBuilder.Entity("Synerixis.Domain.Entities.ChatMessage", b =>

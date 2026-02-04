@@ -23,8 +23,11 @@ builder.Logging.AddDebug();            // 输出到调试窗口（如 VS Output）
 builder.Logging.SetMinimumLevel(LogLevel.Debug);  // 必须设为 Debug 才能看到 LogDebug
 
 // 1 添加控制器支持
-builder.Services.AddControllers();
-
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;  // 关键：忽略大小写
+    });
 
 // 2 Semantic Kernel 配置
 builder.Services.AddSingleton<SemanticKernelConfig>();

@@ -34,7 +34,7 @@ namespace Synerixis.Application.Services
                 product.Description = dto.Description ?? product.Description;
                 product.Price = dto.Price ?? product.Price;
                 product.ImagesJson = dto.ImagesJson ?? product.ImagesJson;
-                product.Category = dto.Category;
+                //product.Category = dto.Category;
                 product.TagsJson = dto.TagsJson ?? product.TagsJson;
                 product.UpdatedAt = DateTime.UtcNow;
             }
@@ -50,7 +50,7 @@ namespace Synerixis.Application.Services
                     Description = dto.Description ?? string.Empty,
                     Price = dto.Price,
                     ImagesJson = dto.ImagesJson ?? "[]",
-                    Category = dto.Category,
+                    //Category = dto.Category,
                     TagsJson = dto.TagsJson ?? "[]",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow

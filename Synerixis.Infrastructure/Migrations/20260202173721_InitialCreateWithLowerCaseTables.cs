@@ -15,7 +15,7 @@ namespace Synerixis.Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Brands",
+                name: "brands",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
@@ -28,12 +28,12 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Brands", x => x.Id);
+                    table.PrimaryKey("PK_brands", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Categories",
+                name: "categories",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
@@ -47,16 +47,16 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Categories", x => x.Id);
+                    table.PrimaryKey("PK_categories", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Sellers",
+                name: "sellers",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
-                    OpenId = table.Column<string>(type: "longtext", maxLength: 128, nullable: false)
+                    OpenId = table.Column<string>(type: "varchar(128)", maxLength: 128, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Phone = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -85,12 +85,12 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Sellers", x => x.Id);
+                    table.PrimaryKey("PK_sellers", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Products",
+                name: "products",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
@@ -103,10 +103,12 @@ namespace Synerixis.Infrastructure.Migrations
                     Description = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Price = table.Column<decimal>(type: "decimal(65,30)", nullable: true),
-                    ImagesJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ImagesJson = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     VideosJson = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    TagsJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    TagsJson = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     CategoryId = table.Column<byte[]>(type: "binary(16)", nullable: false),
                     BrandId = table.Column<byte[]>(type: "binary(16)", nullable: false),
                     AttributesJson = table.Column<string>(type: "longtext", nullable: false)
@@ -117,24 +119,24 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Products", x => x.Id);
+                    table.PrimaryKey("PK_products", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Products_Brands_BrandId",
+                        name: "FK_products_brands_BrandId",
                         column: x => x.BrandId,
-                        principalTable: "Brands",
+                        principalTable: "brands",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_Products_Categories_CategoryId",
+                        name: "FK_products_categories_CategoryId",
                         column: x => x.CategoryId,
-                        principalTable: "Categories",
+                        principalTable: "categories",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Conversations",
+                name: "conversations",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
@@ -148,18 +150,18 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Conversations", x => x.Id);
+                    table.PrimaryKey("PK_conversations", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Conversations_Sellers_SellerId",
+                        name: "FK_conversations_sellers_SellerId",
                         column: x => x.SellerId,
-                        principalTable: "Sellers",
+                        principalTable: "sellers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "PayOrders",
+                name: "pay_orders",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
@@ -176,18 +178,18 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PayOrders", x => x.Id);
+                    table.PrimaryKey("PK_pay_orders", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_PayOrders_Sellers_SellerId",
+                        name: "FK_pay_orders_sellers_SellerId",
                         column: x => x.SellerId,
-                        principalTable: "Sellers",
+                        principalTable: "sellers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "SellerConfigs",
+                name: "seller_configs",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
@@ -211,18 +213,18 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SellerConfigs", x => x.Id);
+                    table.PrimaryKey("PK_seller_configs", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_SellerConfigs_Sellers_SellerId",
+                        name: "FK_seller_configs_sellers_SellerId",
                         column: x => x.SellerId,
-                        principalTable: "Sellers",
+                        principalTable: "sellers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "ProductAttribute",
+                name: "product_attributes",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
@@ -239,18 +241,18 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ProductAttribute", x => x.Id);
+                    table.PrimaryKey("PK_product_attributes", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_ProductAttribute_Products_ProductId",
+                        name: "FK_product_attributes_products_ProductId",
                         column: x => x.ProductId,
-                        principalTable: "Products",
+                        principalTable: "products",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "SellerProducts",
+                name: "seller_products",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
@@ -271,28 +273,29 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SellerProducts", x => x.Id);
+                    table.PrimaryKey("PK_seller_products", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_SellerProducts_Products_ProductId",
+                        name: "FK_seller_products_products_ProductId",
                         column: x => x.ProductId,
-                        principalTable: "Products",
+                        principalTable: "products",
                         principalColumn: "Id");
                     table.ForeignKey(
-                        name: "FK_SellerProducts_Sellers_SellerId",
+                        name: "FK_seller_products_sellers_SellerId",
                         column: x => x.SellerId,
-                        principalTable: "Sellers",
+                        principalTable: "sellers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "SKUs",
+                name: "skus",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
                     ProductId = table.Column<byte[]>(type: "binary(16)", nullable: false),
-                    SpecsJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SpecsJson = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     Price = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
                     Stock = table.Column<int>(type: "int", nullable: false),
                     ExternalCode = table.Column<string>(type: "longtext", nullable: false)
@@ -302,18 +305,18 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SKUs", x => x.Id);
+                    table.PrimaryKey("PK_skus", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_SKUs_Products_ProductId",
+                        name: "FK_skus_products_ProductId",
                         column: x => x.ProductId,
-                        principalTable: "Products",
+                        principalTable: "products",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "ChatMessages",
+                name: "chat_messages",
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
@@ -329,71 +332,71 @@ namespace Synerixis.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ChatMessages", x => x.Id);
+                    table.PrimaryKey("PK_chat_messages", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_ChatMessages_Conversations_ConversationId",
+                        name: "FK_chat_messages_conversations_ConversationId",
                         column: x => x.ConversationId,
-                        principalTable: "Conversations",
+                        principalTable: "conversations",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChatMessages_ConversationId",
-                table: "ChatMessages",
+                name: "IX_chat_messages_ConversationId",
+                table: "chat_messages",
                 column: "ConversationId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Conversations_SellerId",
-                table: "Conversations",
+                name: "IX_conversations_SellerId",
+                table: "conversations",
                 column: "SellerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PayOrders_SellerId",
-                table: "PayOrders",
+                name: "IX_pay_orders_SellerId",
+                table: "pay_orders",
                 column: "SellerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ProductAttribute_ProductId",
-                table: "ProductAttribute",
+                name: "IX_product_attributes_ProductId",
+                table: "product_attributes",
                 column: "ProductId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Products_BrandId",
-                table: "Products",
+                name: "IX_products_BrandId",
+                table: "products",
                 column: "BrandId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Products_CategoryId",
-                table: "Products",
+                name: "IX_products_CategoryId",
+                table: "products",
                 column: "CategoryId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SellerConfigs_SellerId",
-                table: "SellerConfigs",
+                name: "IX_seller_configs_SellerId",
+                table: "seller_configs",
                 column: "SellerId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_SellerProducts_ProductId",
-                table: "SellerProducts",
+                name: "IX_seller_products_ProductId",
+                table: "seller_products",
                 column: "ProductId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SellerProducts_SellerId",
-                table: "SellerProducts",
+                name: "IX_seller_products_SellerId",
+                table: "seller_products",
                 column: "SellerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Sellers_OpenId",
-                table: "Sellers",
+                name: "IX_sellers_OpenId",
+                table: "sellers",
                 column: "OpenId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_SKUs_ProductId",
-                table: "SKUs",
+                name: "IX_skus_ProductId",
+                table: "skus",
                 column: "ProductId");
         }
 
@@ -401,37 +404,37 @@ namespace Synerixis.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "ChatMessages");
+                name: "chat_messages");
 
             migrationBuilder.DropTable(
-                name: "PayOrders");
+                name: "pay_orders");
 
             migrationBuilder.DropTable(
-                name: "ProductAttribute");
+                name: "product_attributes");
 
             migrationBuilder.DropTable(
-                name: "SellerConfigs");
+                name: "seller_configs");
 
             migrationBuilder.DropTable(
-                name: "SellerProducts");
+                name: "seller_products");
 
             migrationBuilder.DropTable(
-                name: "SKUs");
+                name: "skus");
 
             migrationBuilder.DropTable(
-                name: "Conversations");
+                name: "conversations");
 
             migrationBuilder.DropTable(
-                name: "Products");
+                name: "products");
 
             migrationBuilder.DropTable(
-                name: "Sellers");
+                name: "sellers");
 
             migrationBuilder.DropTable(
-                name: "Brands");
+                name: "brands");
 
             migrationBuilder.DropTable(
-                name: "Categories");
+                name: "categories");
         }
     }
 }

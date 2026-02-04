@@ -7,21 +7,21 @@ namespace Synerixis.Domain.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
 
-        public string ExternalId { get; set; } = string.Empty;
-        public string ExternalSource { get; set; } = string.Empty;
+        public string? ExternalId { get; set; } = string.Empty;
+        public string? ExternalSource { get; set; } = string.Empty;
 
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
+        public string? Title { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
         public decimal? Price { get; set; }
-        public string ImagesJson { get; set; } = "[]";
-        public string VideosJson { get; set; } = "[]";
+        public string? ImagesJson { get; set; } = "[]";
+        public string? VideosJson { get; set; } = "[]";
         //public string Category { get; set; } = string.Empty;  // 核心类目（全局）
-        public string TagsJson { get; set; } = "[]";
+        public string? TagsJson { get; set; } = "[]";
 
         public Guid CategoryId { get; set; }
         public Guid BrandId { get; set; }
 
-        public string AttributesJson { get; set; } = "{}";
+        public string? AttributesJson { get; set; } = "{}";
 
         public int Status { get; set; } = 1;
 
@@ -34,7 +34,7 @@ namespace Synerixis.Domain.Entities
         public ICollection<SellerProduct> SellerProducts { get; set; } = new List<SellerProduct>();
 
         // 新增：实体导航属性（必须加！）
-        public Category Category { get; set; }  // ← 这行就是报错的根源缺失
-        public Brand Brand { get; set; }
+        public Category? Category { get; set; }  // ← 这行就是报错的根源缺失
+        public Brand? Brand { get; set; }
     }
 }

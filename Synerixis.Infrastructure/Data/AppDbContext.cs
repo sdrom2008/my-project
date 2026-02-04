@@ -1,8 +1,5 @@
-﻿// Synerixis.Infrastructure/Data/AppDbContext.cs
-using Microsoft.EntityFrameworkCore;
-using Synerixis.Application.DTOs;
+﻿using Microsoft.EntityFrameworkCore;
 using Synerixis.Domain.Entities;
-
 
 namespace Synerixis.Infrastructure.Data
 {
@@ -13,9 +10,9 @@ namespace Synerixis.Infrastructure.Data
         public DbSet<SellerProduct> SellerProducts { get; set; }
         public DbSet<Conversation> Conversations { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
-        public DbSet<PayOrder> PayOrders { get; set; }                 // 支付订单表
-
+        public DbSet<PayOrder> PayOrders { get; set; }
         public DbSet<Product> Products { get; set; }
+        public DbSet<ProductAttribute> ProductAttributes { get; set; }
         public DbSet<SKU> SKUs { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Brand> Brands { get; set; }
@@ -28,7 +25,7 @@ namespace Synerixis.Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // 统一所有 Guid 字段为 binary(16)
+            // 1. 统一 Guid 为 binary(16)（放在最前面）
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 foreach (var property in entityType.GetProperties())
@@ -40,7 +37,7 @@ namespace Synerixis.Infrastructure.Data
                 }
             }
 
-            // 统一所有 string 字段为 longtext（避免默认 varchar(255) 限制）
+            // 2. 所有 string 字段默认 longtext（MySQL 兼容）
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 foreach (var property in entityType.GetProperties())
@@ -52,66 +49,57 @@ namespace Synerixis.Infrastructure.Data
                 }
             }
 
-            // 显式配置表名和外键（避免大小写问题）
+            // 3. 显式配置每个实体（表名 + 关系）
             modelBuilder.Entity<Seller>(entity =>
             {
+                entity.ToTable("sellers");
                 entity.HasKey(s => s.Id);
-                entity.Property(s => s.OpenId).HasMaxLength(128).IsRequired();
-                entity.HasIndex(s => s.OpenId).IsUnique();
+
+                // 明确指定 OpenId 类型和长度（防止被全局 longtext 覆盖）
+                entity.Property(s => s.OpenId)
+                      .HasColumnType("varchar(128)")
+                      .HasMaxLength(128)
+                      .IsRequired();
+
+                entity.HasIndex(s => s.OpenId)
+                      .IsUnique()
+                      .HasDatabaseName("IX_sellers_OpenId");
             });
 
-            modelBuilder.Entity<ChatMessage>()
-                .HasOne(m => m.Conversation)
-                .WithMany(c => c.Messages)
-                .HasForeignKey(m => m.ConversationId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<Conversation>(entity =>
-            {
-                entity.HasKey(c => c.Id);
-                entity.HasOne(c => c.Seller)
-                      .WithMany(s => s.Conversations)
-                      .HasForeignKey(c => c.SellerId)
-                      .OnDelete(DeleteBehavior.Restrict);
-                entity.HasIndex(c => c.SellerId);
-            });
-
-            // SellerConfig 配置
             modelBuilder.Entity<SellerConfig>(entity =>
             {
+                entity.ToTable("seller_configs");
                 entity.HasKey(c => c.Id);
 
                 entity.HasOne(c => c.Seller)
-                      .WithOne(s => s.Config)  // 反向导航：Seller.Config
+                      .WithOne(s => s.Config)
                       .HasForeignKey<SellerConfig>(c => c.SellerId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // SellerProduct 配置
             modelBuilder.Entity<SellerProduct>(entity =>
             {
+                entity.ToTable("seller_products");
                 entity.HasKey(p => p.Id);
 
                 entity.HasOne(p => p.Seller)
-                      .WithMany(s => s.SellerProducts)  // Seller.SellerProducts 集合
+                      .WithMany(s => s.SellerProducts)
                       .HasForeignKey(p => p.SellerId)
                       .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(p => p.Product)
-                      .WithMany(prod => prod.SellerProducts)  // Product.SellerProducts 集合
+                      .WithMany(prod => prod.SellerProducts)
                       .HasForeignKey(p => p.ProductId)
-                      .OnDelete(DeleteBehavior.NoAction);  // 防止级联删除商品本体
+                      .OnDelete(DeleteBehavior.NoAction);
             });
 
-            // Product 配置
             modelBuilder.Entity<Product>(entity =>
             {
+                entity.ToTable("products");
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.ImagesJson).HasColumnType("nvarchar(max)");
-                entity.Property(e => e.TagsJson).HasColumnType("nvarchar(max)");
 
                 entity.HasOne(e => e.Category)
-                      .WithMany()
+                      .WithMany(c => c.Products)
                       .HasForeignKey(e => e.CategoryId)
                       .OnDelete(DeleteBehavior.Restrict);
 
@@ -121,23 +109,21 @@ namespace Synerixis.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // ProductAttribute 配置（改名后）
             modelBuilder.Entity<ProductAttribute>(entity =>
             {
+                entity.ToTable("product_attributes");
                 entity.HasKey(e => e.Id);
 
                 entity.HasOne(e => e.Product)
-                      .WithMany(p => p.Attributes)  // Product.Attributes 集合
+                      .WithMany(p => p.Attributes)
                       .HasForeignKey(e => e.ProductId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // SKU 配置
             modelBuilder.Entity<SKU>(entity =>
             {
+                entity.ToTable("skus");
                 entity.HasKey(e => e.Id);
-
-                entity.Property(e => e.SpecsJson).HasColumnType("nvarchar(max)");
 
                 entity.HasOne(e => e.Product)
                       .WithMany(p => p.SKUs)
@@ -145,9 +131,9 @@ namespace Synerixis.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Category 配置（树形）
             modelBuilder.Entity<Category>(entity =>
             {
+                entity.ToTable("categories");
                 entity.HasKey(e => e.Id);
 
                 entity.HasMany(e => e.Products)
@@ -156,9 +142,9 @@ namespace Synerixis.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // Brand 配置
             modelBuilder.Entity<Brand>(entity =>
             {
+                entity.ToTable("brands");
                 entity.HasKey(e => e.Id);
 
                 entity.HasMany(e => e.Products)
@@ -167,9 +153,9 @@ namespace Synerixis.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // PayOrder 配置
             modelBuilder.Entity<PayOrder>(entity =>
             {
+                entity.ToTable("pay_orders");
                 entity.HasKey(e => e.Id);
 
                 entity.HasOne<Seller>()
@@ -178,6 +164,27 @@ namespace Synerixis.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
+            modelBuilder.Entity<Conversation>(entity =>
+            {
+                entity.ToTable("conversations");
+                entity.HasKey(c => c.Id);
+
+                entity.HasOne(c => c.Seller)
+                      .WithMany(s => s.Conversations)
+                      .HasForeignKey(c => c.SellerId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ChatMessage>(entity =>
+            {
+                entity.ToTable("chat_messages");
+                entity.HasKey(m => m.Id);
+
+                entity.HasOne(m => m.Conversation)
+                      .WithMany(c => c.Messages)
+                      .HasForeignKey(m => m.ConversationId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }
