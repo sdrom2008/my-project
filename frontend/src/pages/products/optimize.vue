@@ -81,47 +81,113 @@ export default {
 
   methods: {
     async loadProduct() {
-      const token = uni.getStorageSync('token');
-      const res = await uni.request({
-        url: `${testbase}/api/seller/products/${this.productId}`,
-        header: { Authorization: `Bearer ${token}` }
-      });
+      try {
+        uni.showLoading({ title: 'AI 优化中...' });
+        const token = uni.getStorageSync('token');
+        
+        // 先获取商品详情
+        const productRes = await uni.request({
+          url: `${testbase}/api/seller/products?page=1&pageSize=1`,
+          header: { Authorization: `Bearer ${token}` }
+        });
 
-      if (res.statusCode === 200) {
-        const data = res.data;
+        if (productRes.statusCode !== 200 || !productRes.data.items || productRes.data.items.length === 0) {
+          uni.hideLoading();
+          uni.showToast({ title: '商品加载失败', icon: 'none' });
+          return;
+        }
+
+        const product = productRes.data.items.find(p => p.id === this.productId);
+        if (!product) {
+          uni.hideLoading();
+          uni.showToast({ title: '商品不存在', icon: 'none' });
+          return;
+        }
+
         this.original = {
-          title: data.title,
-          description: data.description,
-          tags: JSON.parse(data.tagsJson || '[]')
+          title: product.title,
+          description: product.description || '',
+          tags: this.parseTags(product.tagsJson)
         };
 
-        // 模拟 AI 优化（后续替换为真实接口）
-        this.optimized = {
-          title: data.title + ' (优化: 爆款高性价比版)',
-          description: data.description + ' (AI 增强: 匹配热销趋势)',
-          tags: [...this.original.tags, '爆款', '高性价比', '2026新款']
-        };
+        // 调用后端 AI 优化接口
+        const optimizeRes = await uni.request({
+          url: `${testbase}/api/seller/products/${this.productId}/optimize-suggestion`,
+          method: 'GET',
+          header: { Authorization: `Bearer ${token}` }
+        });
+
+        uni.hideLoading();
+
+        if (optimizeRes.statusCode === 200 && optimizeRes.data) {
+          this.optimized = {
+            title: optimizeRes.data.optimizedTitle,
+            description: optimizeRes.data.optimizedDescription,
+            tags: optimizeRes.data.optimizedTags || []
+          };
+          uni.showToast({ title: 'AI 优化完成', icon: 'success' });
+        } else {
+          // 降级处理：使用简单的本地优化
+          this.generateLocalOptimization();
+          uni.showToast({ title: '使用本地优化方案', icon: 'none' });
+        }
+      } catch (error) {
+        uni.hideLoading();
+        console.error('[ERROR]', error);
+        this.generateLocalOptimization();
+        uni.showToast({ title: '使用本地优化方案', icon: 'none' });
       }
     },
 
+    parseTags(tagsJson) {
+      try {
+        return JSON.parse(tagsJson || '[]');
+      } catch {
+        return [];
+      }
+    },
+
+    generateLocalOptimization() {
+      // 本地优化方案（无 AI 时的降级）
+      this.optimized = {
+        title: this.original.title + ' [爆款高性价比]',
+        description: this.original.description + ' 匹配热销趋势，品质优选',
+        tags: [...this.original.tags, '爆款', '高性价比', '2026新款']
+      };
+    },
+
     async saveOptimized() {
-      this.saving = true;
-      const token = uni.getStorageSync('token');
+      try {
+        this.saving = true;
+        const token = uni.getStorageSync('token');
 
-      const res = await uni.request({
-        url: `${testbase}/api/seller/products/${this.productId}/optimize`,
-        method: 'PUT',
-        header: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
-        data: this.optimized
-      });
+        const sendData = {
+          optimizedTitle: this.optimized.title,
+          optimizedDescription: this.optimized.description,
+          optimizedTagsJson: JSON.stringify(this.optimized.tags || [])
+        };
 
-      this.saving = false;
+        const res = await uni.request({
+          url: `${testbase}/api/seller/products/${this.productId}/optimize`,
+          method: 'PUT',
+          header: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+          data: sendData
+        });
 
-      if (res.statusCode === 200) {
-        uni.showToast({ title: '保存成功', icon: 'success' });
-        uni.navigateBack();
-      } else {
-        uni.showToast({ title: res.data?.msg || '保存失败', icon: 'none' });
+        this.saving = false;
+
+        if (res.statusCode === 200) {
+          uni.showToast({ title: '优化结果已保存', icon: 'success' });
+          setTimeout(() => {
+            uni.navigateBack();
+          }, 500);
+        } else {
+          uni.showToast({ title: res.data?.message || '保存失败', icon: 'none' });
+        }
+      } catch (error) {
+        this.saving = false;
+        console.error('[ERROR]', error);
+        uni.showToast({ title: '网络错误', icon: 'none' });
       }
     },
 

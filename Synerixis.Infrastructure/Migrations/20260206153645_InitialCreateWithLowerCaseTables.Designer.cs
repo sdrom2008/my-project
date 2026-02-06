@@ -12,7 +12,7 @@ using Synerixis.Infrastructure.Data;
 namespace Synerixis.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260202173721_InitialCreateWithLowerCaseTables")]
+    [Migration("20260206153645_InitialCreateWithLowerCaseTables")]
     partial class InitialCreateWithLowerCaseTables
     {
         /// <inheritdoc />
@@ -178,6 +178,9 @@ namespace Synerixis.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("SellerId");
@@ -192,7 +195,6 @@ namespace Synerixis.Infrastructure.Migrations
                         .HasColumnType("binary(16)");
 
                     b.Property<string>("AttributesJson")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<byte[]>("BrandId")
@@ -207,19 +209,15 @@ namespace Synerixis.Infrastructure.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("ExternalId")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("ExternalSource")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("ImagesJson")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<decimal?>("Price")
@@ -229,18 +227,15 @@ namespace Synerixis.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("TagsJson")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("Title")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("VideosJson")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
@@ -464,15 +459,12 @@ namespace Synerixis.Infrastructure.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("OptimizedDescription")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("OptimizedTagsJson")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("OptimizedTitle")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<byte[]>("ProductId")
@@ -484,7 +476,6 @@ namespace Synerixis.Infrastructure.Migrations
                         .HasColumnType("binary(16)");
 
                     b.Property<string>("Source")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<DateTime>("UpdatedAt")

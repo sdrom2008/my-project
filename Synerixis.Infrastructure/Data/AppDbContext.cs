@@ -85,12 +85,14 @@ namespace Synerixis.Infrastructure.Data
                 entity.HasOne(p => p.Seller)
                       .WithMany(s => s.SellerProducts)
                       .HasForeignKey(p => p.SellerId)
-                      .OnDelete(DeleteBehavior.Cascade);
+                      .OnDelete(DeleteBehavior.Cascade)
+                      .IsRequired();
 
                 entity.HasOne(p => p.Product)
                       .WithMany(prod => prod.SellerProducts)
                       .HasForeignKey(p => p.ProductId)
-                      .OnDelete(DeleteBehavior.NoAction);
+                      .OnDelete(DeleteBehavior.NoAction)
+                      .IsRequired();
             });
 
             modelBuilder.Entity<Product>(entity =>

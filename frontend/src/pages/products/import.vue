@@ -71,7 +71,7 @@
       </view>
     </view>
 
-    <!-- 保存按钮（手动或链接预览后显示） -->
+    <!-- 保存按钮 -->
     <button class="save-btn" :loading="saving" @tap="saveProduct" v-if="importMethod === 'manual' || previewItem">
       确认导入商品
     </button>
@@ -131,8 +131,8 @@ export default {
     async saveProduct() {
       const formData = this.importMethod === 'manual' ? this.manualForm : this.previewItem;
 
-      // 简单校验
-      if (!formData.title.trim()) {
+      // 校验
+      if (!formData.title || !formData.title.trim()) {
         uni.showToast({ title: '商品标题不能为空', icon: 'none' });
         return;
       }
@@ -140,41 +140,44 @@ export default {
       this.saving = true;
       const token = uni.getStorageSync('token');
 
-  // 加这一行：打印发送的数据
-  console.log('[DEBUG] 发送到 /import 的数据:', JSON.stringify({
-    title: formData.title,
-    description: formData.description || '',
-    price: formData.price ? parseFloat(formData.price) : null,
-    imagesJson: JSON.stringify(formData.images ? formData.images.split(',').map(s => s.trim()).filter(s => s) : []),
-    category: formData.category || '',
-    tagsJson: JSON.stringify(formData.tags ? formData.tags.split(',').map(s => s.trim()).filter(s => s) : []),
-    source: this.importMethod === 'url' ? 'url' : 'manual'
-  }));
-
-      const res = await uni.request({
-        url: `${testbase}/api/seller/products/import`,
-        method: 'POST',
-        header: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
-        data: {
+      try {
+        const sendData = {
           title: formData.title.trim(),
           description: formData.description?.trim() || '',
-          price: formData.price ? parseFloat(formData.price) : null,
+          price: formData.price ? String(formData.price).trim() : null,  // 转为字符串
           imagesJson: JSON.stringify(formData.images ? formData.images.split(',').map(s => s.trim()).filter(s => s) : []),
           category: formData.category?.trim() || '',
           tagsJson: JSON.stringify(formData.tags ? formData.tags.split(',').map(s => s.trim()).filter(s => s) : []),
           source: this.importMethod === 'url' ? 'url' : 'manual'
+        };
+
+        console.log('[DEBUG] 发送到 /import 的数据:', JSON.stringify(sendData));
+
+        const res = await uni.request({
+          url: `${testbase}/api/seller/products/import`,
+          method: 'POST',
+          header: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+          data: sendData
+        });
+
+        this.saving = false;
+
+        console.log('[DEBUG] 后端返回:', res);
+
+        if (res.statusCode === 200) {
+          uni.showToast({ title: '导入成功！', icon: 'success' });
+          // 返回列表页面
+          setTimeout(() => {
+            uni.navigateBack();
+          }, 500);
+        } else {
+          const errorMsg = res.data?.message || res.data?.error || '导入失败，请检查输入';
+          uni.showToast({ title: errorMsg, icon: 'none', duration: 3000 });
         }
-      });
-
-      this.saving = false;
-
- console.log('[DEBUG] 后端返回:', res);
-
-      if (res.statusCode === 200) {
-        uni.showToast({ title: '导入成功', icon: 'success' });
-        uni.navigateBack();  // 返回列表页
-      } else {
-        uni.showToast({ title: res.data?.msg || res.data?.message || '导入失败，请重试', icon: 'none' });
+      } catch (error) {
+        this.saving = false;
+        console.error('[ERROR]', error);
+        uni.showToast({ title: '网络错误，请重试', icon: 'none' });
       }
     },
 
@@ -186,6 +189,7 @@ export default {
 </script>
 
 <style>
+/* 保持原有样式不变 */
 .import-page { background: #f5f5f5; min-height: 100vh; padding-bottom: 120rpx; }
 .navbar { height: 88rpx; background: #000; color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 30rpx; position: fixed; top: 0; left: 0; right: 0; z-index: 999; }
 .back { font-size: 48rpx; }
@@ -194,7 +198,6 @@ export default {
 .tab { flex: 1; padding: 36rpx 0; text-align: center; font-size: 32rpx; color: #666; border-right: 1rpx solid #eee; }
 .tab:last-child { border-right: none; }
 .tab.active { background: #007aff; color: white; }
-.tab.disabled { color: #ccc; background: #f8f8f8; }
 .form-section { margin: 0 30rpx 30rpx; background: white; border-radius: 24rpx; padding: 40rpx; box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.08); }
 .form-group { margin-bottom: 48rpx; }
 .label { font-size: 30rpx; color: #333; margin-bottom: 20rpx; display: block; }

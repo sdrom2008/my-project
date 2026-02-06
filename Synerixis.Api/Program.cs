@@ -18,18 +18,25 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Logging.AddConsole();          // Êä³öµ½¿ØÖÆÌ¨
-builder.Logging.AddDebug();            // Êä³öµ½µ÷ÊÔ´°¿Ú£¨Èç VS Output£©
-builder.Logging.SetMinimumLevel(LogLevel.Debug);  // ±ØĞëÉèÎª Debug ²ÅÄÜ¿´µ½ LogDebug
+builder.Logging.AddConsole();          // è¾“å‡ºåˆ°æ§åˆ¶å°
+builder.Logging.AddDebug();            // è¾“å‡ºåˆ°è°ƒè¯•çª—å£ï¼ˆå¦‚ VS Outputï¼‰
+builder.Logging.SetMinimumLevel(LogLevel.Debug);  // å¿…é¡»è®¾ä¸º Debug æ‰èƒ½çœ‹åˆ° LogDebug
 
-// 1 Ìí¼Ó¿ØÖÆÆ÷Ö§³Ö
+builder.Services.AddLogging(logging =>
+{
+    logging.AddConsole();
+    logging.SetMinimumLevel(LogLevel.Debug);
+});
+
+// 1 æ·»åŠ æ§åˆ¶å™¨æ”¯æŒ
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;  // ¹Ø¼ü£ººöÂÔ´óĞ¡Ğ´
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;  // å¿½ç•¥å¤§å°å†™ç»‘å®š
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;  // å¯é€‰
     });
 
-// 2 Semantic Kernel ÅäÖÃ
+// 2 Semantic Kernel é…ç½®
 builder.Services.AddSingleton<SemanticKernelConfig>();
 
 builder.Services.AddSingleton<Kernel>(sp => sp.GetRequiredService<SemanticKernelConfig>().Kernel);
@@ -37,47 +44,47 @@ builder.Services.AddSingleton<Kernel>(sp => sp.GetRequiredService<SemanticKernel
 builder.Services.AddScoped<IChatCompletionService>(sp =>
     sp.GetRequiredService<Kernel>().GetRequiredService<IChatCompletionService>());
 
-// 4. ÒµÎñ·şÎñ£¨Ë³Ğò£ºÏÈ»ù´¡£¬ºóÒÀÀµ£©
+// 4. ä¸šåŠ¡æœåŠ¡ï¼ˆé¡ºåºï¼šå…ˆåŸºç¡€ï¼Œåä¾èµ–ï¼‰
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGeneralChatAgent, GeneralChatAgent>();
 builder.Services.AddScoped<IIntentClassifier, IntentClassifier>();
-// 5. Agent ÏÈ×¢²á£¨ËùÓĞ¾ßÌå Agent£©
+// 5. Agent å…ˆæ³¨å†Œï¼ˆæ‰€æœ‰å…·ä½“ Agentï¼‰
 builder.Services.AddScoped<IAgent, ProductOptimizationAgent>();
-// Èç¹ûÓĞÆäËû Agent£¬ÔÚÕâÀï¼ÌĞø¼Ó
+// å¦‚æœæœ‰å…¶ä»– Agentï¼Œåœ¨è¿™é‡Œç»§ç»­åŠ 
 builder.Services.AddSingleton<AliyunSmsService>();
 
 builder.Services.AddScoped<ProductService>();
 
-// ÄÚ´æ»º´æ£¨ÓÃÓÚÒâÍ¼·ÖÀàµÈ£©
+// å†…å­˜ç¼“å­˜ï¼ˆç”¨äºæ„å›¾åˆ†ç±»ç­‰ï¼‰
 builder.Services.AddMemoryCache();
 
-// ×¨ÓÃ²Ö´¢£¨Èç¹ûÓĞ£©
+// ä¸“ç”¨ä»“å‚¨ï¼ˆå¦‚æœæœ‰ï¼‰
 builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
 
 
-// ÒâÍ¼·ÖÀàÆ÷£¨ÓÃ LLM °æ±¾£©
+// æ„å›¾åˆ†ç±»å™¨ï¼ˆç”¨ LLM ç‰ˆæœ¬ï¼‰
 builder.Services.AddScoped<IIntentClassifier, IntentClassifier>();
 
 
-// 6. AgentRouter£¨×¢²áÎª½Ó¿Ú£¡±ØĞëÔÚËùÓĞ Agent ºó£©
+// 6. AgentRouterï¼ˆæ³¨å†Œä¸ºæ¥å£ï¼å¿…é¡»åœ¨æ‰€æœ‰ Agent åï¼‰
 builder.Services.AddScoped<IAgentRouter, AgentRouter>();
 
-#region Ìí¼ÓÎ¢ĞÅÅäÖÃ
+#region æ·»åŠ å¾®ä¿¡é…ç½®
 builder.Services.AddSenparcWeixinServices(builder.Configuration);
 
 #endregion
 
-// Ìí¼Ó OpenAPI/Swagger£¨¿ÉÑ¡£¬¿ª·¢Ê±·½±ã£©
+// æ·»åŠ  OpenAPI/Swaggerï¼ˆå¯é€‰ï¼Œå¼€å‘æ—¶æ–¹ä¾¿ï¼‰
 builder.Services.AddEndpointsApiExplorer();
 //builder.Services.AddSwaggerGen();
 
-// CORS£¨ÔÊĞíËùÓĞ£¬Éú²ú»·¾³½¨ÒéÊÕ½ô£©
+// CORSï¼ˆå…è®¸æ‰€æœ‰ï¼Œç”Ÿäº§ç¯å¢ƒå»ºè®®æ”¶ç´§ï¼‰
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
 
-// JWT ÈÏÖ¤
+// JWT è®¤è¯
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -102,25 +109,25 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseMySql(conn, ServerVersion.AutoDetect(conn), mysql => mysql.EnableRetryOnFailure());
 });
 
-// ·ºĞÍ²Ö´¢£¨ÍÆ¼öÖ»×¢²áÒ»´Î£©
+// æ³›å‹ä»“å‚¨ï¼ˆæ¨èåªæ³¨å†Œä¸€æ¬¡ï¼‰
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
-// HttpClient ¹¤³§£¨Èç¹û Agent ÀïĞèÒªµ÷ÓÃÍâ²¿ API£©
+// HttpClient å·¥å‚ï¼ˆå¦‚æœ Agent é‡Œéœ€è¦è°ƒç”¨å¤–éƒ¨ APIï¼‰
 builder.Services.AddHttpClient();
 
-// Health Checks£¨¿ÉÑ¡£©
+// Health Checksï¼ˆå¯é€‰ï¼‰
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("Database");
 
-// 7. AiChatService£¨×îºó×¢²á£¬ÒÀÀµ Router£©
+// 7. AiChatServiceï¼ˆæœ€åæ³¨å†Œï¼Œä¾èµ– Routerï¼‰
 builder.Services.AddScoped<IAiChatService, AiChatService>();
 
 var app = builder.Build();
 
-//ÅäÖÃ¾²Ì¬ÎÄ¼ş·şÎñ
+//é…ç½®é™æ€æ–‡ä»¶æœåŠ¡
 app.UseStaticFiles();
 
-// ÖĞ¼ä¼ş¹ÜµÀ
+// ä¸­é—´ä»¶ç®¡é“
 app.UseCors("AllowAll");
 
 //if (app.Environment.IsDevelopment())

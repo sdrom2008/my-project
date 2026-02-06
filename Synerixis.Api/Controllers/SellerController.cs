@@ -1,13 +1,15 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Humanizer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Senparc.CO2NET.Extensions;
 using Synerixis.Application.DTOs;
 using Synerixis.Application.Interfaces;
 using Synerixis.Application.Services;
 using Synerixis.Domain.Entities;
 using Synerixis.Infrastructure.Data;
-using System.Security.Claims;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace Synerixis.Api.Controllers
@@ -19,9 +21,9 @@ namespace Synerixis.Api.Controllers
     {
         private readonly AppDbContext _db;
         private readonly IAuthService _authService;  // 如果需要
-        private readonly ProductService _productService ;
+        private readonly ProductService _productService;
 
-        public SellerController(AppDbContext db, IAuthService authService, ProductService productService    )
+        public SellerController(AppDbContext db, IAuthService authService, ProductService productService)
         {
             _db = db;
             _authService = authService;
@@ -146,32 +148,6 @@ namespace Synerixis.Api.Controllers
             return Ok(new { url });
         }
 
-        // 导入商品（调用 Service 层）
-        [HttpPost("products/import")]
-        public async Task<IActionResult> ImportProduct([FromBody] ProductImportDto dto)
-        {
-            Console.WriteLine("[DEBUG] 进入 ImportProduct，Raw Body: " + Request.Body.ToString());
-            Console.WriteLine("[DEBUG] DTO: " + JsonSerializer.Serialize(dto));
-
-            var sellerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Guid.TryParse(sellerIdStr, out var sellerId))
-                return Unauthorized();
-
-            if (string.IsNullOrWhiteSpace(dto.Title))
-                return BadRequest("标题不能为空");
-
-            // 给 null 字段赋默认值
-            dto.Description ??= "";
-            dto.ImagesJson ??= "[]";
-            dto.TagsJson ??= "[]";
-            dto.Category ??= "";
-            dto.Source ??= "manual";
-
-            // 调用 Service
-            var productId = await _productService.ImportProductAsync(sellerId, dto);
-
-            return Ok(new { message = "商品导入成功", productId });
-        }
 
 
         // 统一商品列表接口（支持分页 + 搜索）
@@ -181,26 +157,38 @@ namespace Synerixis.Api.Controllers
             [FromQuery] int pageSize = 10,
             [FromQuery] string keyword = null)
         {
-            var sellerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Guid.TryParse(sellerIdStr, out var sellerId))
-                return Unauthorized();
-
-            var products = await _productService.GetProductsAsync(sellerId, page, pageSize, keyword);
-
-            var items = products.Select(p => new
+            try
             {
-                Id = p.Id,
-                Title = p.Product.Title,
-                Price = p.Product.Price,
-                Category = p.Product.Category != null ? p.Product.Category.Name : "未分类",
-                ImagesJson = p.Product.ImagesJson,
-                TagsJson = p.Product.TagsJson,
-                Source = p.Source
-            }).ToList();
+                var sellerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!Guid.TryParse(sellerIdStr, out var sellerId))
+                    return Unauthorized("无效的身份令牌");
 
-            var total = await _db.SellerProducts.CountAsync(p => p.SellerId == sellerId);
+                var products = await _productService.GetProductsAsync(sellerId, page, pageSize, keyword);
 
-            return Ok(new { total, page, pageSize, items });
+                var items = products.Select(p => new
+                {
+                    id = p.Id,
+                    title = p.Product?.Title ?? "未命名商品",
+                    price = p.CustomPrice ?? p.Product?.Price ?? 0,
+                    category = p.Product?.Category?.Name ?? "未分类",
+                    imagesJson = p.Product?.ImagesJson ?? "[]",
+                    tagsJson = p.Product?.TagsJson ?? "[]",
+                    source = p.Source ?? "manual",
+                    importedAt = p.ImportedAt,
+                    optimizedTitle = p.OptimizedTitle,
+                    optimizedDescription = p.OptimizedDescription,
+                    optimizedTagsJson = p.OptimizedTagsJson
+                }).ToList();
+
+                var total = await _db.SellerProducts.CountAsync(p => p.SellerId == sellerId);
+
+                return Ok(new { total, page, pageSize, items });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] GetProducts 异常: {ex.Message}");
+                return StatusCode(500, new { message = "获取商品列表失败", error = ex.Message });
+            }
         }
 
         // 删除商品（调用 Service 层更好，但这里保持简单）
@@ -220,6 +208,10 @@ namespace Synerixis.Api.Controllers
 
             return Ok(new { message = "删除成功" });
         }
+
+
+
+
 
 
         // AI 优化（保存优化结果）
@@ -265,10 +257,64 @@ namespace Synerixis.Api.Controllers
 
             return Ok(product);
         }
+
+        [HttpPost("products/import")]
+        public async Task<IActionResult> ImportProduct([FromBody] ProductImportDto dto)
+        {
+            try
+            {
+                var sellerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!Guid.TryParse(sellerIdStr, out var sellerId))
+                    return Unauthorized("无效的身份令牌");
+
+                if (dto == null)
+                    return BadRequest("请求体为空");
+
+                if (string.IsNullOrWhiteSpace(dto.Title))
+                    return BadRequest("商品标题不能为空");
+
+                // 设置默认值
+                dto.Description ??= "";
+                dto.ImagesJson ??= "[]";
+                dto.TagsJson ??= "[]";
+                dto.Category ??= "";
+                dto.Source ??= "manual";
+
+                var productId = await _productService.ImportProductAsync(sellerId, dto);
+
+                return Ok(new { message = "商品导入成功", productId });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ImportProduct 异常: {ex.Message}");
+                return StatusCode(500, new { message = "商品导入失败", error = ex.Message });
+            }
+        }
+
+        //测试
+        //[HttpPost("products/import")]
+        //public IActionResult ImportProduct([FromBody] TestDto dto)
+        //{
+        //    Console.WriteLine("[TEST] 进入方法，Title: " + dto?.Title + ", Desc: " + dto?.Description + ",Price:" +dto.Price.ToString());
+        //    return Ok(new { message = "收到" });
+        //}
     }
 
     public class FetchUrlDto
     {
         public string Url { get; set; }
+    }
+
+    //测试用
+    public class TestDto
+    {
+        public string? ExternalId { get; set; }
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public decimal? Price { get; set; }  // string
+        public string? ImagesJson { get; set; }
+        public string? Category { get; set; }
+        public string? TagsJson { get; set; }
+        //public string Source { get; set; }
     }
 }

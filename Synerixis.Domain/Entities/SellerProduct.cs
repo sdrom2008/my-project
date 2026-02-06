@@ -9,8 +9,8 @@ namespace Synerixis.Domain.Entities
     public class SellerProduct
     {
         public Guid Id { get; set; } = Guid.NewGuid();
-        public Guid? SellerId { get; set; }
-        public Guid? ProductId { get; set; }
+        public Guid SellerId { get; set; }
+        public Guid ProductId { get; set; }
 
         public decimal? CustomPrice { get; set; }  // 商户自定义价格
         public int? CustomStock { get; set; }      // 自定义库存

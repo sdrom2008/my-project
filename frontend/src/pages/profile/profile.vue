@@ -102,7 +102,7 @@
 </template>
 
 <script>
-const testbase = 'http://192.168.1.254:7092';
+const testbase = 'http://192.168.10.7:7092';
 
 export default {
   data() {
@@ -143,32 +143,37 @@ export default {
 
   methods: {
     async loadProfile() {
-      const token = uni.getStorageSync('token');
-      if (!token) return uni.navigateTo({ url: '/pages/login/login' });
+      try {
+        const token = uni.getStorageSync('token');
+        if (!token) return uni.navigateTo({ url: '/pages/login/login' });
 
-      const res = await uni.request({
-        url: `${testbase}/api/seller/profile`,
-        header: { Authorization: `Bearer ${token}` }
-      });
+        const res = await uni.request({
+          url: `${testbase}/api/seller/profile`,
+          header: { Authorization: `Bearer ${token}` }
+        });
 
-      if (res.statusCode === 200) {
-        this.profile = res.data;
-        this.form = {
-          nickname: res.data.nickname || '',
-          avatarUrl: res.data.avatarUrl || '',
-          phone: res.data.phone || '',
-          shopName: res.data.config?.shopName || '',
-          shopLogo: res.data.config?.shopLogo || '',
-          mainCategory: res.data.config?.mainCategory || '',
-          targetCustomerDesc: res.data.config?.targetCustomerDesc || '',
-          defaultReplyTone: res.data.config?.defaultReplyTone || 'professional',
-          preferredLanguage: res.data.config?.preferredLanguage || 'zh',
-          enableAutoMarketingReminder: res.data.config?.enableAutoMarketingReminder ?? true
-        };
-        this.toneIndex = this.toneOptions.findIndex(t => t.value === this.form.defaultReplyTone);
-        this.langIndex = this.langOptions.findIndex(l => l.value === this.form.preferredLanguage);
-      } else {
-        uni.showToast({ title: '加载失败，请重试', icon: 'none' });
+        if (res.statusCode === 200) {
+          this.profile = res.data;
+          this.form = {
+            nickname: res.data.nickname || '',
+            avatarUrl: res.data.avatarUrl || '',
+            phone: res.data.phone || '',
+            shopName: res.data.config?.shopName || '',
+            shopLogo: res.data.config?.shopLogo || '',
+            mainCategory: res.data.config?.mainCategory || '',
+            targetCustomerDesc: res.data.config?.targetCustomerDesc || '',
+            defaultReplyTone: res.data.config?.defaultReplyTone || 'professional',
+            preferredLanguage: res.data.config?.preferredLanguage || 'zh',
+            enableAutoMarketingReminder: res.data.config?.enableAutoMarketingReminder ?? true
+          };
+          this.toneIndex = this.toneOptions.findIndex(t => t.value === this.form.defaultReplyTone);
+          this.langIndex = this.langOptions.findIndex(l => l.value === this.form.preferredLanguage);
+        } else {
+          uni.showToast({ title: res.data?.message || '加载失败', icon: 'none' });
+        }
+      } catch (error) {
+        console.error('[ERROR]', error);
+        uni.showToast({ title: '网络错误，请重试', icon: 'none' });
       }
     },
 
@@ -205,50 +210,93 @@ export default {
     },
 
     async uploadFile(filePath, type) {
-      this.uploading = true;
-      const token = uni.getStorageSync('token');
+      try {
+        this.uploading = true;
+        const token = uni.getStorageSync('token');
 
-      uni.uploadFile({
-        url: `${testbase}/api/upload/${type}`,
-        filePath,
-        name: 'file',
-        header: { Authorization: `Bearer ${token}` },
-        success: res => {
-          const data = JSON.parse(res.data);
-          if (data.url) {
-            if (type === 'avatar') this.form.avatarUrl = data.url;
-            else this.form.shopLogo = data.url;
-            uni.showToast({ title: '上传成功', icon: 'success' });
-          } else {
-            uni.showToast({ title: data.msg || '上传失败', icon: 'none' });
+        uni.uploadFile({
+          url: `${testbase}/api/seller/upload/${type}`,
+          filePath,
+          name: 'file',
+          header: { Authorization: `Bearer ${token}` },
+          success: res => {
+            try {
+              const data = JSON.parse(res.data);
+              if (data.url) {
+                if (type === 'avatar') this.form.avatarUrl = data.url;
+                else this.form.shopLogo = data.url;
+                uni.showToast({ title: '上传成功', icon: 'success' });
+              } else {
+                uni.showToast({ title: data.message || '上传失败', icon: 'none' });
+              }
+            } catch (e) {
+              uni.showToast({ title: '响应解析失败', icon: 'none' });
+            }
+          },
+          fail: err => {
+            uni.showToast({ title: '上传失败', icon: 'none' });
+            console.error('[ERROR]', err);
+          },
+          complete: () => {
+            this.uploading = false;
           }
-        },
-        fail: err => {
-          uni.showToast({ title: '上传失败', icon: 'none' });
-          console.error('上传错误:', err);
-        },
-        complete: () => {
-          this.uploading = false;
-        }
-      });
+        });
+      } catch (error) {
+        this.uploading = false;
+        console.error('[ERROR]', error);
+      }
     },
 
     async saveConfig() {
-      this.saving = true;
-      const token = uni.getStorageSync('token');
-      const res = await uni.request({
-        url: `${testbase}/api/seller/config`,
-        method: 'PUT',
-        header: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
-        data: this.form
-      });
+      try {
+        if (!this.form.shopName || !this.form.shopName.trim()) {
+          uni.showToast({ title: '店铺名称不能为空', icon: 'none' });
+          return;
+        }
 
-      this.saving = false;
-      if (res.statusCode === 200) {
-        uni.showToast({ title: '保存成功', icon: 'success' });
-        this.loadProfile();
-      } else {
-        uni.showToast({ title: res.data?.msg || '保存失败', icon: 'none' });
+        this.saving = true;
+        const token = uni.getStorageSync('token');
+
+        // 分别更新个人信息和配置
+        const configUpdateRes = await uni.request({
+          url: `${testbase}/api/seller/config`,
+          method: 'PUT',
+          header: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+          data: {
+            shopName: this.form.shopName,
+            shopLogo: this.form.shopLogo,
+            mainCategory: this.form.mainCategory,
+            targetCustomerDesc: this.form.targetCustomerDesc,
+            defaultReplyTone: this.form.defaultReplyTone,
+            preferredLanguage: this.form.preferredLanguage,
+            enableAutoMarketingReminder: this.form.enableAutoMarketingReminder
+          }
+        });
+
+        if (configUpdateRes.statusCode === 200) {
+          // 如果个人信息有变化，也更新
+          if (this.form.nickname !== this.profile.nickname || this.form.avatarUrl !== this.profile.avatarUrl) {
+            await uni.request({
+              url: `${testbase}/api/seller/profile`,
+              method: 'PUT',
+              header: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+              data: {
+                nickname: this.form.nickname,
+                avatarUrl: this.form.avatarUrl
+              }
+            });
+          }
+
+          uni.showToast({ title: '保存成功', icon: 'success' });
+          this.loadProfile();
+        } else {
+          uni.showToast({ title: configUpdateRes.data?.message || '保存失败', icon: 'none' });
+        }
+      } catch (error) {
+        console.error('[ERROR]', error);
+        uni.showToast({ title: '网络错误', icon: 'none' });
+      } finally {
+        this.saving = false;
       }
     },
 
@@ -260,7 +308,7 @@ export default {
           if (res.confirm) {
             uni.removeStorageSync('token');
             uni.removeStorageSync('sellerId');
-            uni.switchTab({ url: '/pages/login/login' });
+            uni.navigateTo({ url: '/pages/login/login' });
           }
         }
       });
@@ -275,9 +323,11 @@ export default {
     },
 
     previewLogo() {
-      uni.previewImage({
-        urls: [this.form.shopLogo]
-      });
+      if (this.form.shopLogo) {
+        uni.previewImage({
+          urls: [this.form.shopLogo]
+        });
+      }
     }
   }
 };

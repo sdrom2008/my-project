@@ -135,32 +135,32 @@ export default {
     },
 
     optimizeProduct(id) {
-      uni.showLoading({ title: 'AI 优化中...' });
-      // 后续调用 AI 接口生成优化标题/描述/标签
-      setTimeout(() => {
-        uni.hideLoading();
-        uni.showToast({ title: '优化完成（模拟）', icon: 'success' });
-      }, 1500);
+      uni.navigateTo({ url: `/pages/products/optimize?id=${id}` });
     },
 
-    deleteProduct(id) {
+    async deleteProduct(id) {
       uni.showModal({
         title: '删除商品',
         content: '确定删除该商品吗？删除后不可恢复',
         success: async res => {
           if (res.confirm) {
-            const token = uni.getStorageSync('token');
-            const delRes = await uni.request({
-              url: `${testbase}/api/seller/products/${id}`,
-              method: 'DELETE',
-              header: { Authorization: `Bearer ${token}` }
-            });
+            try {
+              const token = uni.getStorageSync('token');
+              const delRes = await uni.request({
+                url: `${testbase}/api/seller/products/${id}`,
+                method: 'DELETE',
+                header: { Authorization: `Bearer ${token}` }
+              });
 
-            if (delRes.statusCode === 200) {
-              uni.showToast({ title: '删除成功', icon: 'success' });
-              this.products = this.products.filter(p => p.id !== id);
-            } else {
-              uni.showToast({ title: '删除失败', icon: 'none' });
+              if (delRes.statusCode === 200) {
+                uni.showToast({ title: '删除成功', icon: 'success' });
+                this.products = this.products.filter(p => p.id !== id);
+              } else {
+                uni.showToast({ title: delRes.data?.message || '删除失败', icon: 'none' });
+              }
+            } catch (error) {
+              console.error('[ERROR]', error);
+              uni.showToast({ title: '网络错误', icon: 'none' });
             }
           }
         }

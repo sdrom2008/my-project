@@ -20,6 +20,13 @@ namespace Synerixis.Application.Services
 
         public async Task<Guid> ImportProductAsync(Guid sellerId, ProductImportDto dto)
         {
+            // 字符串转 decimal
+            decimal? price = null;
+            if (!string.IsNullOrWhiteSpace(dto.Price) && decimal.TryParse(dto.Price, out var parsedPrice))
+            {
+                price = parsedPrice;
+            }
+
             // 先检查是否已存在相同 ExternalId 的商品（避免重复导入）
             var existingProduct = await _db.Products.FirstOrDefaultAsync(p =>
                 p.ExternalId == dto.ExternalId && p.ExternalSource == (dto.Source ?? "manual"));
@@ -32,9 +39,8 @@ namespace Synerixis.Application.Services
                 product = existingProduct;
                 product.Title = dto.Title ?? product.Title;
                 product.Description = dto.Description ?? product.Description;
-                product.Price = dto.Price ?? product.Price;
+                product.Price = price ?? product.Price;
                 product.ImagesJson = dto.ImagesJson ?? product.ImagesJson;
-                //product.Category = dto.Category;
                 product.TagsJson = dto.TagsJson ?? product.TagsJson;
                 product.UpdatedAt = DateTime.UtcNow;
             }
@@ -48,9 +54,8 @@ namespace Synerixis.Application.Services
                     ExternalSource = dto.Source ?? "manual",
                     Title = dto.Title ?? string.Empty,
                     Description = dto.Description ?? string.Empty,
-                    Price = dto.Price,
+                    Price = price,
                     ImagesJson = dto.ImagesJson ?? "[]",
-                    //Category = dto.Category,
                     TagsJson = dto.TagsJson ?? "[]",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -64,8 +69,9 @@ namespace Synerixis.Application.Services
                 Id = Guid.NewGuid(),
                 SellerId = sellerId,
                 ProductId = product.Id,
-                CustomPrice = dto.Price,  // 可自定义
-                CustomStock = null,       // 可自定义
+                CustomPrice = price,  // 可自定义
+                CustomStock = null,   // 可自定义
+                Source = dto.Source ?? "manual",  // 记录来源
                 ImportedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

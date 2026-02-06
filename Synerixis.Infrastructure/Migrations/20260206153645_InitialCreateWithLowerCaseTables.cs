@@ -94,24 +94,24 @@ namespace Synerixis.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<byte[]>(type: "binary(16)", nullable: false),
-                    ExternalId = table.Column<string>(type: "longtext", nullable: false)
+                    ExternalId = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ExternalSource = table.Column<string>(type: "longtext", nullable: false)
+                    ExternalSource = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Title = table.Column<string>(type: "longtext", nullable: false)
+                    Title = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Description = table.Column<string>(type: "longtext", nullable: false)
+                    Description = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Price = table.Column<decimal>(type: "decimal(65,30)", nullable: true),
-                    ImagesJson = table.Column<string>(type: "longtext", nullable: false)
+                    ImagesJson = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    VideosJson = table.Column<string>(type: "longtext", nullable: false)
+                    VideosJson = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    TagsJson = table.Column<string>(type: "longtext", nullable: false)
+                    TagsJson = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CategoryId = table.Column<byte[]>(type: "binary(16)", nullable: false),
                     BrandId = table.Column<byte[]>(type: "binary(16)", nullable: false),
-                    AttributesJson = table.Column<string>(type: "longtext", nullable: false)
+                    AttributesJson = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Status = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
@@ -174,7 +174,8 @@ namespace Synerixis.Infrastructure.Migrations
                     TransactionId = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    PaidAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    PaidAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -262,13 +263,13 @@ namespace Synerixis.Infrastructure.Migrations
                     CustomStock = table.Column<int>(type: "int", nullable: true),
                     ImportedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    Source = table.Column<string>(type: "longtext", nullable: false)
+                    Source = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    OptimizedTitle = table.Column<string>(type: "longtext", nullable: false)
+                    OptimizedTitle = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    OptimizedDescription = table.Column<string>(type: "longtext", nullable: false)
+                    OptimizedDescription = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    OptimizedTagsJson = table.Column<string>(type: "longtext", nullable: false)
+                    OptimizedTagsJson = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>

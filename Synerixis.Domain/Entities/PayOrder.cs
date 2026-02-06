@@ -16,5 +16,6 @@ namespace Synerixis.Domain.Entities
         public string TransactionId { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? PaidAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
     }
 }

@@ -10,27 +10,28 @@ namespace Synerixis.Application.DTOs
 {
     public class ProductImportDto
     {
-        public string ExternalId { get; set; }
+        [JsonPropertyName("externalId")]
+        public string? ExternalId { get; set; }
 
         [JsonPropertyName("title")]
-        public string Title { get; set; }
+        public string? Title { get; set; }
 
         [JsonPropertyName("description")]
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [JsonPropertyName("price")]
-        public decimal? Price { get; set; }
+        public string? Price { get; set; }  // 从前端接收为 string，内部转换
 
         [JsonPropertyName("imagesJson")]
-        public string ImagesJson { get; set; }
+        public string? ImagesJson { get; set; }
 
         [JsonPropertyName("category")]
-        public string Category { get; set; }
+        public string? Category { get; set; }
 
         [JsonPropertyName("tagsJson")]
-        public string TagsJson { get; set; }
+        public string? TagsJson { get; set; }
 
         [JsonPropertyName("source")]
-        public string Source { get; set; }
+        public string? Source { get; set; }
     }
 }

@@ -39,42 +39,51 @@ export default {
 
   methods: {
     async createOrder() {
-      this.paying = true;
-      const token = uni.getStorageSync('token');
+      try {
+        this.paying = true;
+        const token = uni.getStorageSync('token');
 
-      const res = await uni.request({
-        url: `${testbase}/api/pay/create-order`,
-        method: 'POST',
-        header: { Authorization: `Bearer ${token}` }
-      });
+        const res = await uni.request({
+          url: `${testbase}/api/pay/create-order`,
+          method: 'POST',
+          header: { Authorization: `Bearer ${token}` }
+        });
 
-      this.paying = false;
+        this.paying = false;
 
-      if (res.statusCode !== 200 || !res.data.appId) {
-        uni.showToast({ title: res.data?.msg || '创建订单失败', icon: 'none' });
-        return;
-      }
-
-      const payData = res.data;
-
-      uni.requestPayment({
-        provider: 'wxpay',
-        timeStamp: payData.timeStamp,
-        nonceStr: payData.nonceStr,
-        package: payData.package,
-        signType: payData.signType,
-        paySign: payData.paySign,
-        success: () => {
-          uni.showToast({ title: '支付成功！权益已到账', icon: 'success' });
-          setTimeout(() => {
-            uni.switchTab({ url: '/pages/dashboard/dashboard' });
-          }, 1500);
-        },
-        fail: err => {
-          uni.showToast({ title: '支付取消或失败', icon: 'none' });
-          console.error('支付失败:', err);
+        if (res.statusCode !== 200 || !res.data.appId) {
+          uni.showToast({ title: res.data?.message || '创建订单失败', icon: 'none' });
+          return;
         }
-      });
+
+        const payData = res.data;
+
+        uni.requestPayment({
+          provider: 'wxpay',
+          timeStamp: payData.timeStamp,
+          nonceStr: payData.nonceStr,
+          package: payData.package,
+          signType: payData.signType,
+          paySign: payData.paySign,
+          success: async () => {
+            // 支付成功
+            uni.showToast({ title: '支付成功！权益已到账', icon: 'success' });
+            
+            // 稍后返回仪表板
+            setTimeout(() => {
+              uni.navigateTo({ url: '/pages/profile/profile' });
+            }, 1500);
+          },
+          fail: err => {
+            uni.showToast({ title: '支付取消或失败', icon: 'none' });
+            console.error('[ERROR]', err);
+          }
+        });
+      } catch (error) {
+        this.paying = false;
+        console.error('[ERROR]', error);
+        uni.showToast({ title: '网络错误，请重试', icon: 'none' });
+      }
     }
   }
 };
