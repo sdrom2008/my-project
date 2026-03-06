@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -12,8 +13,10 @@ using Synerixis.Domain.Entities;
 using Synerixis.Infrastructure.Agent;
 using Synerixis.Infrastructure.AI;
 using Synerixis.Infrastructure.Data;
+using Synerixis.Infrastructure.Payment;
 using Synerixis.Infrastructure.Repositories;
 using Synerixis.Infrastructure.Services;
+using System.Reflection;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,6 +39,28 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;  // 可选
     });
 
+//builder.Services.AddEndpointsApiExplorer();
+//builder.Services.AddSwaggerGen(c =>
+//{
+//    c.SwaggerDoc("v1", new OpenApiInfo
+//    {
+//        Title = "Synerixis API",
+//        Version = "v1",
+//        Description = "Synerixis AI SaaS 平台 API",
+//        Contact = new OpenApiContact
+//        {
+//            Name = "Your Name",
+//            Email = "sdrom2008@qq.com"
+//        }
+//    });
+
+//    // 可选：让 Swagger 显示 XML 注释（如果你的 Controller 有 /// 注释）
+//    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+//    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+//    if (File.Exists(xmlPath))
+//        c.IncludeXmlComments(xmlPath);
+//});
+
 // 2 Semantic Kernel 配置
 builder.Services.AddSingleton<SemanticKernelConfig>();
 
@@ -43,6 +68,7 @@ builder.Services.AddSingleton<Kernel>(sp => sp.GetRequiredService<SemanticKernel
 
 builder.Services.AddScoped<IChatCompletionService>(sp =>
     sp.GetRequiredService<Kernel>().GetRequiredService<IChatCompletionService>());
+
 
 // 4. 业务服务（顺序：先基础，后依赖）
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -52,6 +78,27 @@ builder.Services.AddScoped<IIntentClassifier, IntentClassifier>();
 builder.Services.AddScoped<IAgent, ProductOptimizationAgent>();
 // 如果有其他 Agent，在这里继续加
 builder.Services.AddSingleton<AliyunSmsService>();
+
+//注册微信支付
+builder.Services.AddScoped<WeChatPayV3Client>(serviceProvider =>
+{
+    var config = serviceProvider.GetRequiredService<IConfiguration>();
+    var dbContext = serviceProvider.GetRequiredService<AppDbContext>();  // 如果需要 db
+
+    return new WeChatPayV3Client(
+        config["WeChatPay:MchId"],
+        config["WeChatPay:AppId"],
+        config["WeChatPay:ApiV3Key"],
+        config["WeChatPay:CertPath"],
+        config["WeChatPay:CertPassword"],
+        dbContext  // 如果你的 WeChatPayV3Client 构造函数需要 db
+                   // 如果不需要 db，就删掉 dbContext 参数
+    );
+});
+
+builder.Services.AddScoped<IPaymentProviderFactory, PaymentProviderFactory>();
+builder.Services.AddScoped<IPaymentProvider, WechatPaymentProvider>();
+builder.Services.AddScoped<IPaymentProvider, AlipayPaymentProvider>();
 
 builder.Services.AddScoped<ProductService>();
 
@@ -75,7 +122,7 @@ builder.Services.AddSenparcWeixinServices(builder.Configuration);
 #endregion
 
 // 添加 OpenAPI/Swagger（可选，开发时方便）
-builder.Services.AddEndpointsApiExplorer();
+//builder.Services.AddEndpointsApiExplorer();
 //builder.Services.AddSwaggerGen();
 
 // CORS（允许所有，生产环境建议收紧）
@@ -128,12 +175,17 @@ var app = builder.Build();
 app.UseStaticFiles();
 
 // 中间件管道
-app.UseCors("AllowAll");
+//app.UseCors("AllowAll");
 
 //if (app.Environment.IsDevelopment())
 //{
 //    app.UseSwagger();
-//    app.UseSwaggerUI();
+//    app.UseSwaggerUI(c =>
+//    {
+//        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Synerixis API v1");
+//        c.RoutePrefix = string.Empty;  // 访问根路径 / 就直接打开 Swagger 页面
+//        // 可选：c.DefaultModelsExpandDepth(-1);  // 默认折叠模型
+//    });
 //}
 
 app.UseHttpsRedirection();

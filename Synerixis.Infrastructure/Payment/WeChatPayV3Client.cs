@@ -11,7 +11,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Synerixis.Infrastructure.Services
+namespace Synerixis.Infrastructure.Payment
 {
     public class WeChatPayV3Client
     {
