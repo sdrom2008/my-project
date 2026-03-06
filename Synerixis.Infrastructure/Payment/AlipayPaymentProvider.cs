@@ -68,6 +68,15 @@ namespace Synerixis.Infrastructure.Payment
             // 构造 form 表单提交（前端直接跳转或 post）
             var paymentUrl = "https://openapi.alipay.com/gateway.do?" + BuildQuery(parameters);
 
+
+            if (string.IsNullOrEmpty(request.OutTradeNo))
+            {
+                // 推荐格式：前缀 + Guid（32位唯一）
+                request.OutTradeNo = $"ZSUB{Guid.NewGuid():N}".Substring(0, 32); ;
+                // 或者更短：SUB + 时间戳 + 随机6位
+                // request.OutTradeNo = $"SUB{Guid.NewGuid():N}".Substring(0, 32); // 截取前32位
+            }
+
             // 保存订单（和微信一致）
             var order = new PayOrder
             {
@@ -76,6 +85,7 @@ namespace Synerixis.Infrastructure.Payment
                 OutTradeNo = request.OutTradeNo,
                 Amount = request.Amount,
                 Status = "pending",
+                Channel = "alipay",
                 CreatedAt = DateTime.UtcNow
             };
             _db.PayOrders.Add(order);

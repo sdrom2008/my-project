@@ -96,9 +96,13 @@ builder.Services.AddScoped<WeChatPayV3Client>(serviceProvider =>
     );
 });
 
+
+builder.Services.AddScoped<WechatPaymentProvider>();  // 直接注册具体类
+builder.Services.AddScoped<AlipayPaymentProvider>();  // 直接注册具体类
+
 builder.Services.AddScoped<IPaymentProviderFactory, PaymentProviderFactory>();
-builder.Services.AddScoped<IPaymentProvider, WechatPaymentProvider>();
-builder.Services.AddScoped<IPaymentProvider, AlipayPaymentProvider>();
+//builder.Services.AddScoped<IPaymentProvider, WechatPaymentProvider>();
+//builder.Services.AddScoped<IPaymentProvider, AlipayPaymentProvider>();
 
 builder.Services.AddScoped<ProductService>();
 

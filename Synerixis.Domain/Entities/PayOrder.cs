@@ -17,5 +17,7 @@ namespace Synerixis.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? PaidAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+
+        public string? Channel { get; set; }
     }
 }

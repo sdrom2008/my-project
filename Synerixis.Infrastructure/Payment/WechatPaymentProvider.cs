@@ -1,11 +1,12 @@
-﻿using Synerixis.Application.Interfaces;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Synerixis.Application.DTOs;
+using Synerixis.Application.Interfaces;
 using Synerixis.Domain.Entities;
 using Synerixis.Infrastructure.Data;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using System;
 using System.Threading.Tasks;
-using Synerixis.Application.DTOs;
 
 namespace Synerixis.Infrastructure.Payment
 {
@@ -29,6 +30,16 @@ namespace Synerixis.Infrastructure.Payment
             // 金额转分
             int amountInFen = (int)(request.Amount * 100);
 
+            //生成订单号（如果前端没有传）
+            if (string.IsNullOrEmpty(request.OutTradeNo))
+            {
+                // 推荐格式：前缀 + Guid（32位唯一）
+                request.OutTradeNo = $"SUB{Guid.NewGuid():N}".Substring(0, 32);
+                // 或者更短：SUB + 时间戳 + 随机6位
+                // request.OutTradeNo = $"SUB{Guid.NewGuid():N}".Substring(0, 32); // 截取前32位
+            }
+
+            //订单传过去 weixin订单产生
             var payParams = await _client.CreateJsApiOrderAsync(
                 request.OutTradeNo,
                 amountInFen,
@@ -45,10 +56,31 @@ namespace Synerixis.Infrastructure.Payment
                 OutTradeNo = request.OutTradeNo,
                 Amount = request.Amount,
                 Status = "pending",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Channel = "wechat"
             };
             _db.PayOrders.Add(order);
-            await _db.SaveChangesAsync();
+
+            //await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+                Console.WriteLine("数据库保存成功");
+            }
+            catch (DbUpdateException dbEx)
+            {
+                var innerMsg = dbEx.InnerException?.Message ?? dbEx.Message;
+                Console.WriteLine("DbUpdateException 失败: " + innerMsg);
+                if (dbEx.InnerException != null)
+                    Console.WriteLine("Inner Exception: " + dbEx.InnerException.ToString());
+
+                throw;  // 继续抛出，让控制器捕获
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("其他异常: " + ex.ToString());
+                throw;
+            }
 
             return new PaymentCreateResult
             {

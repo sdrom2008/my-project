@@ -55,12 +55,15 @@ namespace Synerixis.Infrastructure.Payment
             var nonceStr = Guid.NewGuid().ToString("N");
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
 
+            if (string.IsNullOrEmpty(openId))
+                throw new Exception("openid 不能为空");
+
             var body = new Dictionary<string, object>
             {
                 ["appid"] = _appId,
                 ["mchid"] = _mchId,
                 ["description"] = description,
-                ["out_trade_no"] = outTradeNo,
+                ["out_trade_no"] = outTradeNo,  // 如果前端没传，后端生成,
                 ["notify_url"] = notifyUrl,
                 ["amount"] = new { total = amountInFen, currency = "CNY" },
                 ["payer"] = new { openid = openId }
@@ -74,7 +77,7 @@ namespace Synerixis.Infrastructure.Payment
             var headers = new Dictionary<string, string>
             {
                 ["Authorization"] = $"WECHATPAY2-SHA256-RSA2048 mchid=\"{_mchId}\",nonce_str=\"{nonceStr}\",timestamp=\"{timestamp}\",serial_no=\"{_serialNo}\",signature=\"{signature}\"",
-                ["Content-Type"] = "application/json",
+                //["Content-Type"] = "application/json",
                 ["Accept"] = "application/json"
             };
 

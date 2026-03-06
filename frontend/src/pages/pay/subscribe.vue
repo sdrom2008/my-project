@@ -17,7 +17,7 @@
       <view class="original">原价 ¥199</view>
     </view>
 
-    <!-- 新增：支付方式选择 -->
+    <!-- 支付方式选择 -->
     <view class="payment-method">
       <text class="method-title">支付方式</text>
       <view class="method-list">
@@ -62,7 +62,7 @@ export default {
   data() {
     return {
       paying: false,
-      selectedChannel: 'wechat'  // 默认微信
+      selectedChannel: 'wechat'
     };
   },
 
@@ -72,66 +72,99 @@ export default {
     },
 
     async createOrder() {
+      this.paying = true;
       try {
-        this.paying = true;
         const token = uni.getStorageSync('token');
         if (!token) {
           uni.showToast({ title: '请先登录', icon: 'none' });
+          uni.navigateTo({ url: '/pages/login/login' });
           return;
         }
 
+        console.log('[支付] 开始创建订单，渠道：', this.selectedChannel);
+
         const res = await uni.request({
-          url: `${testbase}/api/pay/create`,  // 注意：已改为正确的 /create（之前是 create-order 导致 404）
+          url: `${testbase}/api/pay/create`,
           method: 'POST',
           header: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
           data: {
-            channel: this.selectedChannel,  // 'wechat' 或 'alipay'
+            channel: this.selectedChannel,
             amount: 99,
-            description: '升级订阅 99元/月'
-            // 如果需要 openId，可从 storage 取或后端从 seller 取
+            description: '升级订阅 99元/月',
+            notifyUrl: 'https://your-domain.com/api/pay/notify/' + this.selectedChannel,
+            returnUrl: 'pages/profile/profile'
           }
         });
 
-        this.paying = false;
+        console.log('[支付] 创建订单完整响应：', JSON.stringify(res, null, 2));
 
-        if (res.statusCode !== 200 || !res.data.success) {
-          uni.showToast({ title: res.data?.message || '创建订单失败', icon: 'none' });
-          console.error('创建订单失败', res);
+        if (res.statusCode !== 200) {
+          uni.showToast({ title: '创建订单失败 ' + res.statusCode, icon: 'none' });
           return;
         }
 
-        const payData = res.data;
+        const data = res.data || {};
+        if (!data.success) {
+          uni.showToast({ title: data.message || '创建订单失败', icon: 'none' });
+          return;
+        }
 
-        // 根据 channel 调用对应支付
+        const payData = data.payParams || data.payData || data;
+        console.log('[支付] 提取的支付参数：', JSON.stringify(payData, null, 2));
+
         let provider = this.selectedChannel === 'wechat' ? 'wxpay' : 'alipay';
 
         uni.requestPayment({
           provider: provider,
-          orderInfo: payData.orderInfo || payData,  // 支付宝用 orderInfo，微信用 timeStamp 等
-          timeStamp: payData.timeStamp,
-          nonceStr: payData.nonceStr,
-          package: payData.package,
-          signType: payData.signType,
-          paySign: payData.paySign,
-          success: async () => {
+          orderInfo: payData.orderInfo || payData,  // 支付宝用
+          timeStamp: payData.timeStamp ? payData.timeStamp.toString() : '',
+          nonceStr: payData.nonceStr || '',
+          package: payData.package || '',
+          signType: payData.signType || 'MD5',
+          paySign: payData.paySign || '',
+          success: (payRes) => {
+            console.log('[支付] 成功：', payRes);
             uni.showToast({ title: '支付成功！权益已到账', icon: 'success' });
-            setTimeout(() => {
-              uni.navigateTo({ url: '/pages/profile/profile' });  // 或 dashboard
-            }, 1500);
+
+            // 轮询订单状态（防止回调延迟）
+            const outTradeNo = payData.outTradeNo || '未知订单号';
+            const checkInterval = setInterval(async () => {
+              const queryRes = await uni.request({
+                url: `${testbase}/api/pay/query?outTradeNo=${outTradeNo}`,
+                method: 'GET',
+                header: { 'Authorization': `Bearer ${token}` }
+              });
+
+              console.log('[轮询] 订单状态：', queryRes.data);
+
+              if (queryRes.statusCode === 200 && queryRes.data?.status === 'paid') {
+                clearInterval(checkInterval);
+                uni.showToast({ title: '权益已同步，请查看个人中心', icon: 'success' });
+                uni.navigateTo({ url: '/pages/profile/profile' });
+              }
+            }, 3000);  // 每3秒查一次
+
+            // 超时停止轮询
+            setTimeout(() => clearInterval(checkInterval), 60000);
           },
-          fail: err => {
-            uni.showToast({ title: '支付取消或失败', icon: 'none' });
-            console.error('[支付失败]', err);
+          fail: (err) => {
+            console.error('[支付] 失败：', err);
+            uni.showToast({ title: '支付失败：' + (err.errMsg || '未知错误'), icon: 'none', duration: 5000 });
+          },
+          complete: () => {
+            console.log('[支付] complete');
+            this.paying = false;
           }
         });
 
       } catch (error) {
-        this.paying = false;
-        console.error('[ERROR]', error);
+        console.error('[支付] 异常：', error);
         uni.showToast({ title: '网络错误，请重试', icon: 'none' });
+      } finally {
+        this.paying = false;
       }
     }
   }

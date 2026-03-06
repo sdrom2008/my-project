@@ -120,6 +120,7 @@ export default {
             // 需要绑定手机号
             this.needBind = true;
             this.tempOpenid = data.openid;
+			uni.setStorageSync('openId', this.tempOpenid);  // 使用临时存储的 openid
             console.log('[DEBUG] 需要绑定，tempOpenid 已保存:', this.tempOpenid);
             uni.showToast({ title: '请绑定手机号', icon: 'none' });
           } else {
@@ -258,6 +259,7 @@ export default {
         if (res.statusCode === 200 && res.data?.token) {
           uni.setStorageSync('token', res.data.token);
           uni.setStorageSync('sellerId', res.data.sellerId);
+		  uni.setStorageSync('openId', res.data.openId);
           uni.showToast({ title: '登录成功', icon: 'success' });
           uni.switchTab({ url: '/pages/dashboard/dashboard' });
         } else {
