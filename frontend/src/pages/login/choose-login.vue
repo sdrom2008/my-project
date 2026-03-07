@@ -9,8 +9,8 @@
       <text class="slogan">AI 智能伙伴</text>
     </view>
 
-    <!-- 按钮区 + 协议一起出现（协议紧跟按钮下方） -->
-    <view class="options-with-protocol">
+    <!-- 按钮区（往下沉，上面留白大） -->
+    <view class="options">
       <button class="option-btn wechat" hover-class="btn-hover" @tap="loginWechat">
         <text>微信一键登录</text>
         <text class="tag">推荐</text>
@@ -19,20 +19,22 @@
       <button class="option-btn phone" hover-class="btn-hover" @tap="loginPhone">
         <text>手机号验证码登录</text>
       </button>
+    </view>
 
-      <!-- 协议跟按钮一起出现，在按钮正下方 -->
-      <view class="protocol">
-        <checkbox size="24" :checked="agree" @change="toggleAgree" color="#3b82f6" />
-        <text>我已阅读并同意</text>
-        <text class="link" @tap="openUserProtocol">《用户协议》</text>
-        <text>和</text>
-        <text class="link" @tap="openPrivacy">《隐私政策》</text>
-      </view>
+    <!-- 协议跟按钮一起出现，在按钮正下方 -->
+    <view class="protocol">
+      <checkbox size="24" :checked="agree" @change="toggleAgree" color="#3b82f6" />
+      <text>我已阅读并同意</text>
+      <text class="link" @tap="openUserProtocol">《用户协议》</text>
+      <text>和</text>
+      <text class="link" @tap="openPrivacy">《隐私政策》</text>
     </view>
   </view>
 </template>
 
 <script>
+const testbase = 'http://192.168.1.254:7092';
+
 export default {
   data() {
     return {
@@ -54,12 +56,48 @@ export default {
     },
 
     loginWechat() {
-      if (!this.agree) return uni.showToast({ title: '请同意协议', icon: 'none' });
-      uni.login({ /* 你的微信登录逻辑 */ });
+      if (!this.agree) {
+        uni.showToast({ title: '请先同意协议', icon: 'none' });
+        return;
+      }
+
+      uni.login({
+        success: res => {
+          if (res.code) {
+            uni.request({
+              url: `${testbase}/api/auth/wechat`,
+              method: 'POST',
+              data: { code: res.code },
+              success: loginRes => {
+                if (loginRes.data.success) {
+                  uni.setStorageSync('token', loginRes.data.token);
+                  uni.setStorageSync('openId', loginRes.data.openId);
+                  uni.setStorageSync('sellerId', loginRes.data.sellerId);
+                  uni.showToast({ title: '微信登录成功', icon: 'success' });
+                  uni.switchTab({ url: '/pages/dashboard/dashboard' });
+                } else {
+                  uni.showToast({ title: loginRes.data.message || '登录失败', icon: 'none' });
+                }
+              },
+              fail: err => {
+                uni.showToast({ title: '网络错误，请重试', icon: 'none' });
+              }
+            });
+          } else {
+            uni.showToast({ title: '获取微信code失败', icon: 'none' });
+          }
+        },
+        fail: err => {
+          uni.showToast({ title: '微信登录失败', icon: 'none' });
+        }
+      });
     },
 
     loginPhone() {
-      if (!this.agree) return uni.showToast({ title: '请同意协议', icon: 'none' });
+      if (!this.agree) {
+        uni.showToast({ title: '请先同意协议', icon: 'none' });
+        return;
+      }
       uni.navigateTo({ url: '/pages/login/login' });
     }
   }
@@ -70,7 +108,7 @@ export default {
 .choose-login {
   height: 100vh;
   background: #0a0e1a;
-  padding-top: 140rpx;  /* logo 上方留白（上浮后偏上） */
+  padding-top: 140rpx;
   padding-bottom: 80rpx;
   display: flex;
   flex-direction: column;
@@ -81,7 +119,7 @@ export default {
 .brand {
   text-align: center;
   opacity: 0;
-  transform: translateY(180rpx);  /* 从启动页位置向下偏移180rpx开始上浮 */
+  transform: translateY(180rpx);
   animation: brandFloat 1.2s ease-out forwards;
 }
 
@@ -94,7 +132,7 @@ export default {
 .title {
   font-size: 64rpx;
   font-weight: bold;
-  color: #3b82f6;
+  color: #22c55e;
   margin: 0;
 }
 
@@ -104,15 +142,11 @@ export default {
   margin: 0;
 }
 
-/* 按钮 + 协议一起出现 */
-.options-with-protocol {
+.options {
   width: 80%;
-  margin-top: 240rpx;  /* 整体往下沉，上面留白多 */
+  margin-top: 240rpx;
   opacity: 0;
   animation: fadeIn 0.8s ease-out 1.2s forwards;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
 .option-btn {
@@ -135,12 +169,12 @@ export default {
 }
 
 .wechat {
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  background: linear-gradient(90deg, #22c55e, #16a34a);
   color: white;
 }
 
 .phone {
-  background: linear-gradient(90deg, #60a5fa, #3b82f6);
+  background: #3b82f6;
   color: white;
 }
 
@@ -148,19 +182,18 @@ export default {
   position: absolute;
   top: 6rpx;
   right: 16rpx;
-  background: #60a5fa;
-  color: white;
+  background: #fbbf24;
+  color: #854d0e;
   font-size: 20rpx;
   padding: 2rpx 12rpx;
   border-radius: 20rpx;
 }
 
 .protocol {
-  margin-top: 40rpx;  /* 紧跟按钮下方，跟按钮一起出现 */
+  margin-top: 40rpx;
   font-size: 24rpx;
   color: #94a3b8;
   text-align: center;
-  width: 100%;
 }
 
 /* 上浮动画 */

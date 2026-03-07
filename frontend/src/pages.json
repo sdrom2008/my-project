@@ -2,7 +2,8 @@
   "pages": [
 	{ "path": "pages/splash/splash", "style": {"navigationBarTitleText": "","navigationStyle": "custom"}},
 	{ "path": "pages/login/choose-login", "style": { "navigationBarTitleText": "登录方式" } },
-    { "path": "pages/login/login", "style": { "navigationBarTitleText": "登录" } },
+    { "path": "pages/login/login", "style": { "navigationBarTitleText": "手机号短信验证登录" } }, 
+	{ "path": "pages/login/wechat-login", "style": { "navigationBarTitleText": "微信登录" } }, 
 	{ "path": "pages/login/bind-phone", "style": { "navigationBarTitleText": "绑定电话" } },
     { "path": "pages/conversations/conversations", "style": { "navigationBarTitleText": "会话列表" } },
     { "path": "pages/chat/chat", "style": { "navigationBarTitleText": "聊天" } },
